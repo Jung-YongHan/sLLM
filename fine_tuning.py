@@ -1,4 +1,6 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.trainer import Trainer
+from transformers.training_args import TrainingArguments
 from transformers.utils.quantization_config import BitsAndBytesConfig
 
 sota_1b_model_id_list = [
@@ -35,3 +37,10 @@ sota_10b_model_id_list = [
     "meta-llama/Llama-3.2-11B-Vision-Instruct",
     "microsoft/Phi-4",
 ]
+
+model_id = sota_1b_model_id_list[0]
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+)
+tokenizer = AutoTokenizer.from_pretrained(model_id)
