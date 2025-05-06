@@ -234,10 +234,10 @@ if __name__ == "__main__":
 
     result_df.loc["medqa_5option_acc", option], result_df.loc["medqa_5option_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_medqa_5options, result_medqa_5options)
     result_df.loc["medqa_4option_acc", option], result_df.loc["medqa_4option_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_medqa_4options, result_medqa_4options)
-    result_df.loc["kormedmcqa_dentist_acc", option], result_df.loc["kormedmcqa_dentist_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["dentist"], result_kormedmcqa["dentist"][0])
-    result_df.loc["kormedmcqa_doctor_acc", option], result_df.loc["kormedmcqa_doctor_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["doctor"], result_kormedmcqa["doctor"][0])
-    result_df.loc["kormedmcqa_nurse_acc", option], result_df.loc["kormedmcqa_nurse_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["nurse"], result_kormedmcqa["nurse"][0])
-    result_df.loc["kormedmcqa_pharm_acc", option], result_df.loc["kormedmcqa_pharm_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["pharm"], result_kormedmcqa["pharm"][0])
+    result_df.loc["kormedmcqa_dentist_acc", option], result_df.loc["kormedmcqa_dentist_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["dentist"], result_kormedmcqa["dentist"])
+    result_df.loc["kormedmcqa_doctor_acc", option], result_df.loc["kormedmcqa_doctor_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["doctor"], result_kormedmcqa["doctor"])
+    result_df.loc["kormedmcqa_nurse_acc", option], result_df.loc["kormedmcqa_nurse_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["nurse"], result_kormedmcqa["nurse"])
+    result_df.loc["kormedmcqa_pharm_acc", option], result_df.loc["kormedmcqa_pharm_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["pharm"], result_kormedmcqa["pharm"])
 
     for idx, row in result_df[option].items():
         print(f"{idx}: {row}")
