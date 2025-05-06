@@ -139,7 +139,7 @@ class EvaluationPipeline:
 
     # Perhaps evaluate_medqa_5options and evaluate_medqa_4options can be merged into one function
     def evaluate_medqa_5options(self) -> list[str]:
-        with open("/kaggle/input/medqa-us/test.jsonl", "r", encoding="utf-8") as f:
+        with open("US/test.jsonl", "r", encoding="utf-8") as f:
             medqa_test = [json.loads(line) for line in f.readlines()]
         answers  = []
         for data in tqdm(medqa_test, desc="Evaluating MedQA",
@@ -167,7 +167,7 @@ class EvaluationPipeline:
         return answers
 
     def get_groundtruth_medqa_5options(self) -> list[str]:
-        with open("/kaggle/input/medqa-us/test.jsonl", "r", encoding="utf-8") as f:
+        with open("US/test.jsonl", "r", encoding="utf-8") as f:
             medqa_test = [json.loads(line) for line in f.readlines()]
         groundtruths = []
         for data in medqa_test:
@@ -176,7 +176,7 @@ class EvaluationPipeline:
         return groundtruths
 
     def evaluate_medqa_4options(self) -> list[str]:
-        with open("/kaggle/input/medqa-us/phrases_no_exclude_test.jsonl", "r", encoding="utf-8") as f:
+        with open("US/4_options/phrases_no_exclude_test.jsonl", "r", encoding="utf-8") as f:
             medqa_test = [json.loads(line) for line in f.readlines()]
         answers = []
         for data in tqdm(medqa_test, desc="Evaluating MedQA",
@@ -203,7 +203,7 @@ class EvaluationPipeline:
         return answers
 
     def get_groundtruth_medqa_4options(self) -> list[str]:
-        with open("/kaggle/input/medqa-us/phrases_no_exclude_test.jsonl", "r", encoding="utf-8") as f:
+        with open("US/4_options/phrases_no_exclude_test.jsonl", "r", encoding="utf-8") as f:
             medqa_test = [json.loads(line) for line in f.readlines()]
         groundtruths = []
         for data in medqa_test:
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     labels_medqa_5options = evalation_pipeline.get_groundtruth_medqa_5options()
     labels_medqa_4options = evalation_pipeline.get_groundtruth_medqa_4options()
 
-    result_df = pd.read_csv(f"/kaggle/input/result-csv/{basemodel_id.split('/')[-1]}.csv", index_col=0)
+    result_df = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index_col=0)
 
     result_df.loc["medqa_5option_acc", option], result_df.loc["medqa_5option_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_medqa_5options, result_medqa_5options)
     result_df.loc["medqa_4option_acc", option], result_df.loc["medqa_4option_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_medqa_4options, result_medqa_4options)
@@ -242,4 +242,4 @@ if __name__ == "__main__":
     for idx, row in result_df[option].items():
         print(f"{idx}: {row}")
 
-    result_df.to_csv(f"/kaggle/working/{basemodel_id.split('/')[-1]}.csv")
+    result_df.to_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
