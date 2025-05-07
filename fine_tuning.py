@@ -1,12 +1,12 @@
 import torch
+from peft import LoraConfig
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 from transformers.utils.quantization_config import BitsAndBytesConfig
-from peft import LoraConfig
-from datasets import load_dataset
-import json
+
+from datasets_class import CustomDataset
 
 sota_1b_model_id_list = [
     "Qwen/Qwen3-1.7B",
@@ -106,15 +106,7 @@ class FineTuner:
         self.model.eval()
         predictions = []
         for example in test_dataset:
-            question = example["question"]
-            A = example["A"]
-            B = example["B"]
-            C = example["C"]
-            D = example["D"]
-            E = example.get("E", None)
-            
-            prompt = self.generate_prompt(question, A, B, C, D, E)
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+            inputs = self.tokenizer(example, return_tensors="pt").to(self.model.device)
             
             with torch.no_grad():
                 outputs = self.model.generate(**inputs)
@@ -124,77 +116,19 @@ class FineTuner:
         
         return predictions
 
-def generate_prompt(self, question: str, A: str, B: str, C: str, D: str, E: str | None, is_Korean=True) -> str:
-    if is_Korean:
-        prompt = f'''
-# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
-## 질문: {question}
-### A: {A}
-### B: {B}
-### C: {C}
-### D: {D}
-### E: {E}
-
-### 정답: 
-'''
-        return prompt
-    else:
-        if E is None:
-            prompt = f'''
-# Read the following question and select only the most appropriate answer from the given options.
-## Question: {question}
-### A: {A}
-### B: {B}
-### C: {C}
-### D: {D}
-
-### Answer: 
-'''
-            return prompt
-        else:
-                prompt = f'''
-# Read the following question and select the most appropriate answer from the given options.
-## Question: {question}
-### A: {A}
-### B: {B}
-### C: {C}
-### D: {D}
-### E: {E}
-
-### Answer: 
-'''
-        return prompt
-
 if __name__ == "__main__":
     
-    # kormedmcqa
-    kormedmcqa_datasets = {
-        "dentist_train": load_dataset("sean0042/KorMedMCQA", "dentist", split="train"),
-        "dentist_eval": load_dataset("sean0042/KorMedMCQA", "dentist", split="dev"),
-        "doctor_train": load_dataset("sean0042/KorMedMCQA", "doctor", split="train"),
-        "doctor_eval": load_dataset("sean0042/KorMedMCQA", "doctor", split="dev"),
-        "nurse_train": load_dataset("sean0042/KorMedMCQA", "nurse", split="train"),
-        "nurse_eval": load_dataset("sean0042/KorMedMCQA", "nurse", split="dev"),
-        "pharm_train": load_dataset("sean0042/KorMedMCQA", "pharm", split="train"),
-        "pharm_eval": load_dataset("sean0042/KorMedMCQA", "pharm", split="dev"),
-    }
+    option = "lora(r=64,a=64)"
     
-    # 5 options medqa
-    with open("US/train.jsonl", "r", encoding="utf-8") as f:
-        medqa_train = [json.loads(line) for line in f.readlines()]
-    with open("US/dev.jsonl", "r", encoding="utf-8") as f:
-        medqa_eval = [json.loads(line) for line in f.readlines()]
-        
-    # 4 options medqa
-    with open("US/4_options/phrases_no_exclude_train.jsonl", "r", encoding="utf-8") as f:
-        medqa_train_4 = [json.loads(line) for line in f.readlines()]
-    with open("US/4_options/phrases_no_exclude_dev.jsonl", "r", encoding="utf-8") as f:
-        medqa_eval_4 = [json.loads(line) for line in f.readlines()]
+    datasets = CustomDataset()
     
-    train_dataset, eval_dataset = kormedmcqa_datasets["dentist_train"], kormedmcqa_datasets["dentist_eval"]
+    train_dataset = datasets.medqa_5options_datasets["train"]
+    eval_dataset = datasets.medqa_5options_datasets["valid"]
+    test_dataset = datasets.medqa_5options_datasets["test"]
     
     for model_id in sota_1b_model_id_list:
         fine_tuner = FineTuner(model_id, is_quantization=False, is_lora=False, lora_r=64, lora_alpha=64)
         fine_tuner.load_model_and_tokenizer()
         fine_tuner.train(train_dataset, eval_dataset, output_dir=f"./output/{model_id.split('/')[-1]}")
-        fine_tuner.model.
+        fine_tuner.model.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}")
+        fine_tuner.tokenizer.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}")

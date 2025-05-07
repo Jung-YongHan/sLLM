@@ -6,7 +6,7 @@
 
 - 소모되는 VRAM은 result_csv/vram.csv 참조
 
-### baseline(no-finetuning, no quantization)
+### baseline(no finetuning, no quantization)
 
 - 모델 로딩 조건 그대로 inference만 진행
 
@@ -18,7 +18,7 @@
 |:-:|:-|:-:|
 |gemma3 1B||
 
-### baseline(no-finetuning, quantization)
+### baseline(no finetuning, quantization)
 
 - 모델 로딩 후 BitsAndBytes 인스턴스를 통해 하이퍼 파라미터를 다음과 같이 설정
 

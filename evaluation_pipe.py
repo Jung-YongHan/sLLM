@@ -1,12 +1,11 @@
-import json
-
 import pandas as pd
-from datasets import load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 from transformers.configuration_utils import PretrainedConfig
 from transformers.pipelines import pipeline
 from transformers.utils.quantization_config import BitsAndBytesConfig
+
+from datasets_class import CustomDataset
 
 
 class EvaluationPipeline:
@@ -51,62 +50,21 @@ class EvaluationPipeline:
                 )
         elif model_dir is not None and model_id is not None: raise ValueError("model_dir and model_id cannot be both set.")
         else: raise ValueError("Either model_dir or model_id must be set.")
-
-    def generate_prompt(self, question: str, A: str, B: str, C: str, D: str, E: str | None, is_Korean=True) -> str:
-        if is_Korean:
-            prompt = f'''
-# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
-## 질문: {question}
-### A: {A}
-### B: {B}
-### C: {C}
-### D: {D}
-### E: {E}
-
-### 정답: 
-'''
-            return prompt
-        else:
-            if E is None:
-                prompt = f'''
-# Read the following question and select only the most appropriate answer from the given options.
-## Question: {question}
-### A: {A}
-### B: {B}
-### C: {C}
-### D: {D}
-
-### Answer: 
-'''
-                return prompt
-            else:
-                prompt = f'''
-# Read the following question and select the most appropriate answer from the given options.
-## Question: {question}
-### A: {A}
-### B: {B}
-### C: {C}
-### D: {D}
-### E: {E}
-
-### Answer: 
-'''
-                return prompt
+        
+        self.datasets = CustomDataset()
 
     def evaluate_kormedmcqa(self) -> dict[str, list[str]]:
-        dentist_test = load_dataset("sean0042/KorMedMCQA", "dentist", split="test")
-        doctor_test = load_dataset("sean0042/KorMedMCQA", "doctor", split="test")
-        nurse_test = load_dataset("sean0042/KorMedMCQA", "nurse", split="test")
-        pharm_test = load_dataset("sean0042/KorMedMCQA", "pharm", split="test")
+        dentist_test = self.datasets.kormedmcqa_datasets["dentist"]["test"]
+        doctor_test = self.datasets.kormedmcqa_datasets["doctor"]["test"]
+        nurse_test = self.datasets.kormedmcqa_datasets["nurse"]["test"]
+        pharm_test = self.datasets.kormedmcqa_datasets["pharm"]["test"]
 
         answers = {"dentist":[], "doctor":[], "nurse":[], "pharm":[]}
         for name, dataset in zip(["dentist","doctor","nurse","pharm"], [dentist_test, doctor_test, nurse_test, pharm_test]):
             answer_list = []
             for data in tqdm(dataset, desc=f"Evaluating {name}",
                              total=len(dataset)):
-                answer = self.inference_pipeline(self.generate_prompt(
-                    data["question"], data["A"], data["B"], data["C"], data["D"], data["E"]
-                ))
+                answer = self.inference_pipeline(data["X"])
                 preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
                 if "A" in preprocessed_answer:
                     answer_list.append("A")
@@ -124,32 +82,13 @@ class EvaluationPipeline:
 
         return answers
 
-    def get_grountruth_kormedmcqa(self) -> dict[str, list[str]]:
-        dentist_test = load_dataset("sean0042/KorMedMCQA", "dentist", split="test")
-        doctor_test = load_dataset("sean0042/KorMedMCQA", "doctor", split="test")
-        nurse_test = load_dataset("sean0042/KorMedMCQA", "nurse", split="test")
-        pharm_test = load_dataset("sean0042/KorMedMCQA", "pharm", split="test")
-
-        number_to_alpha = {1:"A", 2:"B", 3:"C", 4:"D", 5:"E"}
-        groundtruths = {"dentist":dentist_test["answer"], "doctor":doctor_test["answer"], "nurse":nurse_test["answer"], "pharm":pharm_test["answer"]}
-        for groundtruth in groundtruths.items():
-            groundtruths[groundtruth[0]] = [number_to_alpha[int(answer)] for answer in groundtruth[1]]
-
-        return groundtruths
-
     # Perhaps evaluate_medqa_5options and evaluate_medqa_4options can be merged into one function
     def evaluate_medqa_5options(self) -> list[str]:
-        with open("US/test.jsonl", "r", encoding="utf-8") as f:
-            medqa_test = [json.loads(line) for line in f.readlines()]
+        medqa_test = self.datasets.medqa_5options_datasets["test"]
         answers  = []
         for data in tqdm(medqa_test, desc="Evaluating MedQA",
                          total=len(medqa_test)):
-            answer = self.inference_pipeline(self.generate_prompt(
-                data["question"],
-                data["options"]["A"], data["options"]["B"],
-                data["options"]["C"], data["options"]["D"],
-                data["options"]["E"]
-            ))
+            answer = self.inference_pipeline(data["X"])
             preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
             if "A" in preprocessed_answer:
                 answers.append("A")
@@ -166,26 +105,12 @@ class EvaluationPipeline:
 
         return answers
 
-    def get_groundtruth_medqa_5options(self) -> list[str]:
-        with open("US/test.jsonl", "r", encoding="utf-8") as f:
-            medqa_test = [json.loads(line) for line in f.readlines()]
-        groundtruths = []
-        for data in medqa_test:
-            groundtruths.append(data["answer_idx"])
-
-        return groundtruths
-
     def evaluate_medqa_4options(self) -> list[str]:
-        with open("US/4_options/phrases_no_exclude_test.jsonl", "r", encoding="utf-8") as f:
-            medqa_test = [json.loads(line) for line in f.readlines()]
+        medqa_test = self.datasets.medqa_4options_datasets["test"]
         answers = []
         for data in tqdm(medqa_test, desc="Evaluating MedQA",
                          total=len(medqa_test)):
-            answer = self.inference_pipeline(self.generate_prompt(
-                data["question"],
-                data["options"]["A"], data["options"]["B"],
-                data["options"]["C"], data["options"]["D"], None
-            ))
+            answer = self.inference_pipeline(data["X"])
             preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
             if "A" in preprocessed_answer:
                 answers.append("A")
@@ -201,15 +126,6 @@ class EvaluationPipeline:
                 answers.append("None")
 
         return answers
-
-    def get_groundtruth_medqa_4options(self) -> list[str]:
-        with open("US/4_options/phrases_no_exclude_test.jsonl", "r", encoding="utf-8") as f:
-            medqa_test = [json.loads(line) for line in f.readlines()]
-        groundtruths = []
-        for data in medqa_test:
-            groundtruths.append(data["answer_idx"])
-
-        return groundtruths
 
     def calculate_metrics(self, labels, predictions) -> tuple[float, float]:
         accuracy = accuracy_score(labels, predictions)
@@ -218,26 +134,22 @@ class EvaluationPipeline:
 
 if __name__ == "__main__":
 
-    basemodel_id, option = "google/gemma-3-1b-it", "baseline(no-finetuning, no quantization)"
+    basemodel_id, option = "google/gemma-3-1b-it", "baseline(no finetuning, no quantization)"
 
-    evalation_pipeline = EvaluationPipeline(model_id=basemodel_id)
+    evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
 
-    result_kormedmcqa = evalation_pipeline.evaluate_kormedmcqa()
-    result_medqa_5options = evalation_pipeline.evaluate_medqa_5options()
-    result_medqa_4options = evalation_pipeline.evaluate_medqa_4options()
-
-    labels_kormedmcqa = evalation_pipeline.get_grountruth_kormedmcqa()
-    labels_medqa_5options = evalation_pipeline.get_groundtruth_medqa_5options()
-    labels_medqa_4options = evalation_pipeline.get_groundtruth_medqa_4options()
+    result_kormedmcqa = evaluation_pipeline.evaluate_kormedmcqa()
+    result_medqa_5options = evaluation_pipeline.evaluate_medqa_5options()
+    result_medqa_4options = evaluation_pipeline.evaluate_medqa_4options()
 
     result_df = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index_col=0)
 
-    result_df.loc["medqa_5option_acc", option], result_df.loc["medqa_5option_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_medqa_5options, result_medqa_5options)
-    result_df.loc["medqa_4option_acc", option], result_df.loc["medqa_4option_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_medqa_4options, result_medqa_4options)
-    result_df.loc["kormedmcqa_dentist_acc", option], result_df.loc["kormedmcqa_dentist_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["dentist"], result_kormedmcqa["dentist"])
-    result_df.loc["kormedmcqa_doctor_acc", option], result_df.loc["kormedmcqa_doctor_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["doctor"], result_kormedmcqa["doctor"])
-    result_df.loc["kormedmcqa_nurse_acc", option], result_df.loc["kormedmcqa_nurse_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["nurse"], result_kormedmcqa["nurse"])
-    result_df.loc["kormedmcqa_pharm_acc", option], result_df.loc["kormedmcqa_pharm_f1(macro)", option] = evalation_pipeline.calculate_metrics(labels_kormedmcqa["pharm"], result_kormedmcqa["pharm"])
+    result_df.loc["medqa_5option_acc", option], result_df.loc["medqa_5option_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.medqa_5options_datasets["test"]["y"], result_medqa_5options)
+    result_df.loc["medqa_4option_acc", option], result_df.loc["medqa_4option_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.medqa_4options_datasets["test"]["y"], result_medqa_4options)
+    result_df.loc["kormedmcqa_dentist_acc", option], result_df.loc["kormedmcqa_dentist_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["dentist"]["test"]["y"], result_kormedmcqa["dentist"])
+    result_df.loc["kormedmcqa_doctor_acc", option], result_df.loc["kormedmcqa_doctor_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["doctor"]["test"]["y"], result_kormedmcqa["doctor"])
+    result_df.loc["kormedmcqa_nurse_acc", option], result_df.loc["kormedmcqa_nurse_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["nurse"]["test"]["y"], result_kormedmcqa["nurse"])
+    result_df.loc["kormedmcqa_pharm_acc", option], result_df.loc["kormedmcqa_pharm_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["pharm"]["test"]["y"], result_kormedmcqa["pharm"])
 
     for idx, row in result_df[option].items():
         print(f"{idx}: {row}")
