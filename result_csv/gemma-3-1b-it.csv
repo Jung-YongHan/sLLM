@@ -1,4 +1,4 @@
-data_metric,baseline(no finetuning/no quantization),baseline(full finetuning/no quantization),baseline(no finetuning/quantization),baseline(full finetuning/quantization),lora(r=64,a=64),qlora(r=64,a=64)
+data_metric,baseline(no finetuning/no quantization),baseline(full finetuning/no quantization),baseline(no finetuning/quantization),baseline(full finetuning/quantization),lora(r=32,a=64),qlora(r=32,a=64)
 medqa_5option_acc,0.2341,,0.2459
 medqa_5option_f1(macro),0.159,,0.1664
 medqa_4option_acc,0.2969,,0.304

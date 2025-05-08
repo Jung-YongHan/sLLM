@@ -41,6 +41,7 @@ sota_10b_model_id_list = [
     "google/gemma-3-12b-it",
     "meta-llama/Llama-3.2-11B-Vision-Instruct",
     "microsoft/Phi-4",
+    #"microsoft/Phi-4-reasoning"
 ]
 
 
@@ -61,6 +62,9 @@ class FineTuner:
             self.lora_config = LoraConfig(
                 r=kwargs.get("lora_r", 16),
                 lora_alpha=kwargs.get("lora_alpha", 32),
+                target_modules=["q_proj", "v_proj"],
+                # if the r is small enough to apply to all modules, you can use the following line instead:
+                # target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
                 task_type="CAUSAL_LM",
             )
         else: self.lora_config = None
@@ -70,7 +74,6 @@ class FineTuner:
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
             quantization_config=self.quantization_config,
-            load_in_4bit=True,
             device_map="auto",
             trust_remote_code=True,
         )
@@ -89,6 +92,7 @@ class FineTuner:
             eval_strategy="steps",
             eval_steps=kwargs.get("eval_steps", 500),
             save_total_limit=kwargs.get("save_total_limit", 2),
+            deepspeed="deepspeed_config.json"
         )
         
         trainer = Trainer(
@@ -118,7 +122,7 @@ class FineTuner:
 
 if __name__ == "__main__":
     
-    option = "lora(r=64,a=64)"
+    option = "lora(r=32,a=64)"
     
     datasets = CustomDataset()
     
@@ -127,7 +131,7 @@ if __name__ == "__main__":
     test_dataset = datasets.medqa_5options_datasets["test"]
     
     for model_id in sota_1b_model_id_list:
-        fine_tuner = FineTuner(model_id, is_quantization=False, is_lora=False, lora_r=64, lora_alpha=64)
+        fine_tuner = FineTuner(model_id, is_quantization=False, is_lora=True, lora_r=64, lora_alpha=64)
         fine_tuner.load_model_and_tokenizer()
         fine_tuner.train(train_dataset, eval_dataset, output_dir=f"./output/{model_id.split('/')[-1]}")
         fine_tuner.model.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}")
