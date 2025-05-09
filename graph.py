@@ -81,6 +81,21 @@ for i, metric in enumerate(unique_metrics):
     ax.tick_params(axis='x', labelsize=10) 
     ax.tick_params(axis='y', labelsize=10) 
     ax.set_xlim(0, 1) 
+
+    # Add vertical line and text for specific metrics
+    if metric in ["kormedmcqa_dentist_acc", "kormedmcqa_dentist_f1(macro)"]:
+        ax.axvline(x=0.96, color='dimgray', linestyle='--', linewidth=1.5)
+        
+        # Position text near the top of the plot, centered on the line
+        y_limits = ax.get_ylim()
+        text_y_position = y_limits[1] - (y_limits[1] - y_limits[0]) * 0.05 # 5% from the top edge
+        
+        ax.text(0.96, text_y_position, 'Gemini 2.5 Pro', 
+                color='dimgray', 
+                fontsize=9, 
+                ha='center',  # Horizontal alignment: center
+                va='top',     # Vertical alignment: top of the text at y_position
+                rotation=0)   # Horizontal text
     
     # No longer need to get handles from the first plot:
     # if i == 0: 
