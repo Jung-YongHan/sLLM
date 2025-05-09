@@ -3,6 +3,7 @@ import os
 import time
 
 from google.genai import Client, types
+from tqdm import tqdm
 
 from datasets_class import CustomDataset
 
@@ -25,20 +26,15 @@ def generate(text: str):
         response_mime_type="text/plain",
     )
 
-    response = [chunk.text for chunk in client.models.generate_content_stream(
-        model=model,
-        contents=contents,
-        config=generate_content_config,
-    )]
-    
-    return "".join(response)
+    return client.models.generate_content(model=model, contents=contents, config=generate_content_config).text
 
 if __name__ == "__main__":
     datasets = CustomDataset()
     
     for data_key in ["dentist", "doctor", "nurse", "pharm"]:
         distillation_jsonl_list = list()
-        for X, y in zip(datasets.kormedmcqa_datasets[data_key]["train"], datasets.kormedmcqa_datasets[data_key]["y"]):
+        for X, y in tqdm(zip(datasets.kormedmcqa_datasets[data_key]["train"]["X"], datasets.kormedmcqa_datasets[data_key]["train"]["y"]),
+                         desc=f"Distillation {data_key}", total=len(datasets.kormedmcqa_datasets[data_key]["train"]["X"])):
             distillation_jsonl_list.append(
                 {
                     "question": X,
@@ -52,7 +48,8 @@ if __name__ == "__main__":
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
         
     distillation_jsonl_list = list()        
-    for X, y in zip(datasets.medqa_5options_datasets["train"], datasets.medqa_5options_datasets["y"]):
+    for X, y in tqdm(zip(datasets.medqa_5options_datasets["X"], datasets.medqa_5options_datasets["y"]),
+                     desc="Distillation MedQA 5 options", total=len(datasets.medqa_5options_datasets["X"])):
         distillation_jsonl_list.append(
             {
                 "question": X,
@@ -66,7 +63,8 @@ if __name__ == "__main__":
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
                 
     distillation_jsonl_list = list()
-    for X, y in zip(datasets.medqa_4options_datasets["train"], datasets.medqa_4options_datasets["y"]):
+    for X, y in tqdm(zip(datasets.medqa_4options_datasets["X"], datasets.medqa_4options_datasets["y"]),
+                     desc="Distillation MedQA 4 options", total=len(datasets.medqa_4options_datasets["X"])):
         distillation_jsonl_list.append(
             {
                 "question": X,

@@ -29,7 +29,7 @@ class EvaluationPipeline:
                     bnb_4bit_compute_dtype="bloat16",
                 )
                 config = PretrainedConfig.from_pretrained(model_id, quantization_config=bitsandbytes_config,
-                                                          do_sample=False, repeatition_penalty=1.5
+                                                          do_sample=False, repeatition_penalty=1.5)
                 self.inference_pipeline = pipeline(
                     task="text-generation",
                     model=model_id,
