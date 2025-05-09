@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 "answer": generate(X),
             }
         )
-        time.sleep(5)
+        time.sleep(1)
         with open(f"distillation_gemini/distillation_medqa_4options.jsonl", "a", encoding="utf-8") as f:
             for row in distillation_jsonl_list:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")

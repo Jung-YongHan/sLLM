@@ -2,6 +2,12 @@
 
 ![The Result of Experiments](result.png)
 
+- Gemini 2.5 exp 03.25의 결과는 다음과 같음
+
+|dataset|accuracy|f1(major)|
+|:--:|:--:|:--:|
+|KorMedMCQA-dentist|0.91|0.91|
+
 ## 참고 문헌 및 자료
 
 ## 옵션별 실험환경
