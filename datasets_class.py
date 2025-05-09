@@ -117,38 +117,38 @@ class CustomDataset:
     def generate_kormedmcqa_prompt(self, x) -> dict[str, str]:
         x["question"] = f'''# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
 ## 질문: {x["question"]}
-### A: {x["A"]}
-### B: {x["B"]}
-### C: {x["C"]}
-### D: {x["D"]}
-### E: {x["E"]}
+- A: {x["A"]}
+- B: {x["B"]}
+- C: {x["C"]}
+- D: {x["D"]}
+- E: {x["E"]}
 
-### 정답: 
+정답: 
 '''
         return x
     
     def generate_medqa_5options_prompt(self, x) -> dict[str, str]:
         x["question"] = f'''# Read the following question and select only the most appropriate answer from the given options.
 ## Question: {x["question"]}
-### A: {x["options"]["A"]}
-### B: {x["options"]["B"]}
-### C: {x["options"]["C"]}
-### D: {x["options"]["D"]}
-### E: {x["options"]["E"]}
+- A: {x["options"]["A"]}
+- B: {x["options"]["B"]}
+- C: {x["options"]["C"]}
+- D: {x["options"]["D"]}
+- E: {x["options"]["E"]}
 
-### Answer: 
+Answer: 
 '''
         return x
     
     def generate_medqa_4options_prompt(self, x) -> dict[str, str]:
         x["question"] = f'''# Read the following question and select the most appropriate answer from the given options.
 ## Question: {x["question"]}
-### A: {x["options"]["A"]}
-### B: {x["options"]["B"]}
-### C: {x["options"]["C"]}
-### D: {x["options"]["D"]}
+- A: {x["options"]["A"]}
+- B: {x["options"]["B"]}
+- C: {x["options"]["C"]}
+- D: {x["options"]["D"]}
 
-### Answer: 
+Answer: 
 '''
         return x
     

@@ -44,6 +44,18 @@ sota_10b_model_id_list = [
     #"microsoft/Phi-4-reasoning"
 ]
 
+sota_1b_model_kwargs = {
+    "google/gemma-3-1b-it": {
+        "per_device_train_batch_size": 8,
+        "per_device_eval_batch_size": 8,
+        "num_train_epochs": 3,
+        "logging_steps": 10,
+        "save_steps": 500,
+        "eval_steps": 500,
+        "save_total_limit": 2,
+    }
+}
+
 
 class FineTuner:
     def __init__(self, model_id, is_quantization=False, is_lora=False, **kwargs):
@@ -74,6 +86,7 @@ class FineTuner:
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
             quantization_config=self.quantization_config,
+            attn_implementation="flash_attention_2",
             device_map="auto",
             trust_remote_code=True,
         )

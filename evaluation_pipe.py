@@ -28,7 +28,8 @@ class EvaluationPipeline:
                     bnb_4bit_quant_type="nf4",
                     bnb_4bit_compute_dtype="bloat16",
                 )
-                config = PretrainedConfig.from_pretrained(model_id, quantization_config=bitsandbytes_config)
+                config = PretrainedConfig.from_pretrained(model_id, quantization_config=bitsandbytes_config,
+                                                          do_sample=False, repeatition_penalty=1.5
                 self.inference_pipeline = pipeline(
                     task="text-generation",
                     model=model_id,
@@ -39,10 +40,11 @@ class EvaluationPipeline:
                     trust_remote_code=True,
                 )
             else:
+                config = PretrainedConfig.from_pretrained(model_id, do_sample=False, repeatition_penalty=1.5)
                 self.inference_pipeline = pipeline(
                     task="text-generation",
                     model=model_id,
-                    config=model_id,
+                    config=config,
                     tokenizer=model_id,
                     device_map="auto",
                     return_full_text=False,
