@@ -1,13 +1,13 @@
-data_metric,baseline(no finetuning/no quantization),baseline(full finetuning/no quantization),baseline(no finetuning/quantization),baseline(full finetuning/quantization),lora(r=32,a=64),qlora(r=32,a=64)
-medqa_5option_acc,0.2341
-medqa_5option_f1(macro),0.159
-medqa_4option_acc,0.2969
-medqa_4option_f1(macro),0.1774
-kormedmcqa_dentist_acc,0.2293
-kormedmcqa_dentist_f1(macro),0.1766
-kormedmcqa_doctor_acc,0.2046
-kormedmcqa_doctor_f1(macro),0.1534
-kormedmcqa_nurse_acc,0.3030
-kormedmcqa_nurse_f1(macro),0.2441
-kormedmcqa_pharm_acc,0.2497
-kormedmcqa_pharm_f1(macro),0.1916
+data_metric,baseline(no finetuning/no quantization),baseline(full finetuning/no quantization),baseline(no finetuning/quantization),baseline(full finetuning/quantization),lora(r=32/a=64),qlora(r=32/a=64)
+medqa_5option_acc,0.2341,,0.1595,,
+medqa_5option_f1(macro),0.159,,0.17,,
+medqa_4option_acc,0.2969,,0.1532,,
+medqa_4option_f1(macro),0.1774,,0.1478,,
+kormedmcqa_dentist_acc,0.2293,,0.1097,,
+kormedmcqa_dentist_f1(macro),0.1766,,0.0966,,
+kormedmcqa_doctor_acc,0.2046,,0.0529,,
+kormedmcqa_doctor_f1(macro),0.1534,,0.0607,,
+kormedmcqa_nurse_acc,0.303,,0.0968,,
+kormedmcqa_nurse_f1(macro),0.2441,,0.114,,
+kormedmcqa_pharm_acc,0.2497,,0.1017,,
+kormedmcqa_pharm_f1(macro),0.1916,,0.1183,,

@@ -10,7 +10,7 @@ from datasets_class import CustomDataset
 
 sota_1b_model_id_list = [
     "Qwen/Qwen3-1.7B",
-    "Qwen/Qwen2.5-1.5B-Instruct"
+    "Qwen/Qwen2.5-1.5B-Instruct",
     "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
     "google/gemma-3-1b-it",
     "meta-llama/Llama-3.2-1B-Instruct",

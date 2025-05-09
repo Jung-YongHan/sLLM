@@ -1,5 +1,7 @@
 # README
 
+![The Result of Experiments](result.png)
+
 ## 참고 문헌 및 자료
 
 ## 옵션별 실험환경
@@ -9,11 +11,11 @@
 - attn_implementation은 flash_attention_2 사용
 - pre-trained 모델이 입력을 그대로 출력하는 경향 때문에 do_sample을 False로 설정하고 repeatition_penalty를 1.5로 줌
 
-### baseline(no finetuning, no quantization)
+### baseline(no finetuning/no quantization)
 
 - 모델 로딩 조건 그대로 inference만 진행
 
-### baseline(full finetuning, no quantization)
+### baseline(full finetuning/no quantization)
 
 - finetuning 하이퍼 파라미터는 다음과 같이 사용
 
@@ -35,7 +37,7 @@ training_args = TrainingArguments(
 )
 ```
 
-### baseline(no finetuning, quantization)
+### baseline(no finetuning/quantization)
 
 - 모델 로딩 후 BitsAndBytes 인스턴스를 통해 하이퍼 파라미터를 다음과 같이 설정
 
@@ -46,11 +48,11 @@ training_args = TrainingArguments(
 |bnb_4bit_quant_type|nf4|
 |bnb_4bit_compute_dtype|bloat16|
 
-### baseline(full finetuning, quantization)
+### baseline(full finetuning/quantization)
 
 - 양자화 하이퍼 파라미터는 위와 동일
 - finetuning 하이퍼 파라미터는 다음과 같이 사용
 
-### lora(r=32,a=64)
+### lora(r=32/a=64)
 
-### qlora(r=32,a=64)
+### qlora(r=32/a=64)
