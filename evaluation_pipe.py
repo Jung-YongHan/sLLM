@@ -55,7 +55,7 @@ class EvaluationPipeline:
         
         self.datasets = CustomDataset()
 
-    def evaluate_kormedmcqa(self) -> dict[str, list[str]]:
+    def evaluate_kormedmcqa(self, cot=False) -> dict[str, list[str]]:
         dentist_test = self.datasets.kormedmcqa_datasets["dentist"]["test"]
         doctor_test = self.datasets.kormedmcqa_datasets["doctor"]["test"]
         nurse_test = self.datasets.kormedmcqa_datasets["nurse"]["test"]
@@ -66,7 +66,10 @@ class EvaluationPipeline:
             answer_list = []
             for data in tqdm(dataset, desc=f"Evaluating {name}",
                              total=len(dataset)):
-                answer = self.inference_pipeline(data["X"])
+                if cot:
+                    answer = self.inference_pipeline(self.datasets.kormedmcqa_cot_data[name] + "\n" + data["X"])
+                else:
+                    answer = self.inference_pipeline(data["X"])
                 preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
                 if "A" in preprocessed_answer:
                     answer_list.append("A")
@@ -85,7 +88,7 @@ class EvaluationPipeline:
         return answers
 
     # Perhaps evaluate_medqa_5options and evaluate_medqa_4options can be merged into one function
-    def evaluate_medqa_5options(self) -> list[str]:
+    def evaluate_medqa_5options(self, cot=False) -> list[str]:
         medqa_test = self.datasets.medqa_5options_datasets["test"]
         answers  = []
         for data in tqdm(medqa_test, desc="Evaluating MedQA",
@@ -107,7 +110,7 @@ class EvaluationPipeline:
 
         return answers
 
-    def evaluate_medqa_4options(self) -> list[str]:
+    def evaluate_medqa_4options(self, cot=False) -> list[str]:
         medqa_test = self.datasets.medqa_4options_datasets["test"]
         answers = []
         for data in tqdm(medqa_test, desc="Evaluating MedQA",

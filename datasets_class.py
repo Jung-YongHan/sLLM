@@ -70,6 +70,13 @@ class CustomDataset:
                 },
         }
         
+        self.kormedmcqa_cot_data = {
+            "dentist": None,
+            "doctor": None,
+            "nurse": None,
+            "pharm": None,
+        }
+        
         with (open(medqa_5options_dir+"train.jsonl", "r", encoding="utf-8") as f_train,
               open(medqa_5options_dir+"dev.jsonl", "r", encoding="utf-8") as f_valid,
               open(medqa_5options_dir+"test.jsonl", "r", encoding="utf-8") as f_test):

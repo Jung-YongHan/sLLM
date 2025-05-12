@@ -2,11 +2,8 @@
 
 ![The Result of Experiments](result.png)
 
-- Gemini 2.5 exp 03.25의 결과는 다음과 같음
-
-|dataset|accuracy|f1(major)|
-|:--:|:--:|:--:|
-|KorMedMCQA-dentist|0.91|0.91|
+- 하단의 모델 외에는 [KorMedMCQA: Multi-Choice Question Answering Benchmark for Korean Healthcare Professional Licensing Examinations의 Appendix C](https://doi.org/10.48550/arXiv.2403.01469)에서 가져옴
+- Closed Model의 파라미터는 [LifeArchitect.ai](LifeArchitect.ai)의 내용을 가져옴
 
 ## 참고 문헌 및 자료
 
