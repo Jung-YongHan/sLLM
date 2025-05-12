@@ -72,10 +72,10 @@ class CustomDataset:
         }
         
         self.kormedmcqa_cot_data = {
-            "dentist": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
-            "doctor": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
-            "nurse": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
-            "pharm": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
+            "dentist": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_cot_prompt)["cot"],
+            "doctor": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_cot_prompt)["cot"],
+            "nurse": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_cot_prompt)["cot"],
+            "pharm": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_cot_prompt)["cot"],
         }
         
         with (open(medqa_5options_dir+"train.jsonl", "r", encoding="utf-8") as f_train,
