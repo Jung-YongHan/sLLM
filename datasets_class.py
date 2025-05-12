@@ -1,4 +1,5 @@
 import json
+from re import X
 
 from datasets import Dataset, load_dataset
 
@@ -71,10 +72,10 @@ class CustomDataset:
         }
         
         self.kormedmcqa_cot_data = {
-            "dentist": None,
-            "doctor": None,
-            "nurse": None,
-            "pharm": None,
+            "dentist": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
+            "doctor": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
+            "nurse": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
+            "pharm": load_dataset(kormedmcqa_dir, "dentist", split="fewshot").map(self.generate_kormedmcqa_prompt)["cot"],
         }
         
         with (open(medqa_5options_dir+"train.jsonl", "r", encoding="utf-8") as f_train,
@@ -159,6 +160,19 @@ Answer:
 '''
         return x
     
+    def generate_kormedmcqa_cot_prompt(self, x) -> dict[str, str]:
+        x["cot"] = f'''# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
+## 질문: {x["question"]}
+- A: {x["A"]}
+- B: {x["B"]}
+- C: {x["C"]}
+- D: {x["D"]}
+- E: {x["E"]}
+
+정답: x["cot"]
+'''
+        return x
+
 # testcode
 if __name__ == "__main__":
     dataset = CustomDataset()

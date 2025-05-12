@@ -3,9 +3,11 @@
 ![The Result of Experiments](result.png)
 
 - 하단의 모델 외에는 [KorMedMCQA: Multi-Choice Question Answering Benchmark for Korean Healthcare Professional Licensing Examinations의 Appendix C](https://doi.org/10.48550/arXiv.2403.01469)에서 가져옴
-- Closed Model의 파라미터는 [LifeArchitect.ai](LifeArchitect.ai)의 내용을 가져옴
+- Closed Model의 파라미터는 추정 값
 
 ## 참고 문헌 및 자료
+
+- [Kweon, S., Choi, B., Chu, G., Song, J., Hyeon, D., Gan, S., ... & Choi, E. (2024). KorMedMCQA: multi-choice question answering benchmark for Korean healthcare professional licensing examinations. arXiv preprint arXiv:2403.01469.](https://doi.org/10.48550/arXiv.2403.01469)
 
 ## 옵션별 실험환경
 

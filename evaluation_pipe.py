@@ -6,6 +6,7 @@ from transformers.pipelines import pipeline
 from transformers.utils.quantization_config import BitsAndBytesConfig
 
 from datasets_class import CustomDataset
+from fine_tuning import *
 
 
 class EvaluationPipeline:
@@ -64,12 +65,13 @@ class EvaluationPipeline:
         answers = {"dentist":[], "doctor":[], "nurse":[], "pharm":[]}
         for name, dataset in zip(["dentist","doctor","nurse","pharm"], [dentist_test, doctor_test, nurse_test, pharm_test]):
             answer_list = []
-            for data in tqdm(dataset, desc=f"Evaluating {name}",
+            for data in tqdm(iterable=dataset["X"], desc=f"Evaluating {name}",
                              total=len(dataset)):
                 if cot:
-                    answer = self.inference_pipeline(self.datasets.kormedmcqa_cot_data[name] + "\n" + data["X"])
+                    fewshot_cot = "\n".join(self.datasets.kormedmcqa_cot_data[name])
+                    answer = self.inference_pipeline(fewshot_cot + "\n" + data)
                 else:
-                    answer = self.inference_pipeline(data["X"])
+                    answer = self.inference_pipeline(data)
                 preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
                 if "A" in preprocessed_answer:
                     answer_list.append("A")
@@ -88,12 +90,12 @@ class EvaluationPipeline:
         return answers
 
     # Perhaps evaluate_medqa_5options and evaluate_medqa_4options can be merged into one function
-    def evaluate_medqa_5options(self, cot=False) -> list[str]:
+    def evaluate_medqa_5options(self) -> list[str]:
         medqa_test = self.datasets.medqa_5options_datasets["test"]
         answers  = []
-        for data in tqdm(medqa_test, desc="Evaluating MedQA",
+        for data in tqdm(medqa_test["X"], desc="Evaluating MedQA",
                          total=len(medqa_test)):
-            answer = self.inference_pipeline(data["X"])
+            answer = self.inference_pipeline(data)
             preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
             if "A" in preprocessed_answer:
                 answers.append("A")
@@ -110,12 +112,12 @@ class EvaluationPipeline:
 
         return answers
 
-    def evaluate_medqa_4options(self, cot=False) -> list[str]:
+    def evaluate_medqa_4options(self) -> list[str]:
         medqa_test = self.datasets.medqa_4options_datasets["test"]
         answers = []
-        for data in tqdm(medqa_test, desc="Evaluating MedQA",
+        for data in tqdm(medqa_test["X"], desc="Evaluating MedQA",
                          total=len(medqa_test)):
-            answer = self.inference_pipeline(data["X"])
+            answer = self.inference_pipeline(data)
             preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
             if "A" in preprocessed_answer:
                 answers.append("A")
@@ -139,24 +141,25 @@ class EvaluationPipeline:
 
 if __name__ == "__main__":
 
-    basemodel_id, option = "google/gemma-3-1b-it", "baseline(no finetuning, no quantization)"
+    for basemodel_id in sota_1b_model_id_list:
+        option = "baseline(no finetuning/no quantization/cot)"
 
-    evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
+        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
 
-    result_kormedmcqa = evaluation_pipeline.evaluate_kormedmcqa()
-    result_medqa_5options = evaluation_pipeline.evaluate_medqa_5options()
-    result_medqa_4options = evaluation_pipeline.evaluate_medqa_4options()
+        result_kormedmcqa = evaluation_pipeline.evaluate_kormedmcqa(True)
+        result_medqa_5options = evaluation_pipeline.evaluate_medqa_5options()
+        result_medqa_4options = evaluation_pipeline.evaluate_medqa_4options()
 
-    result_df = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index_col=0)
+        result_df = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index_col=0)
 
-    result_df.loc["medqa_5option_acc", option], result_df.loc["medqa_5option_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.medqa_5options_datasets["test"]["y"], result_medqa_5options)
-    result_df.loc["medqa_4option_acc", option], result_df.loc["medqa_4option_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.medqa_4options_datasets["test"]["y"], result_medqa_4options)
-    result_df.loc["kormedmcqa_dentist_acc", option], result_df.loc["kormedmcqa_dentist_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["dentist"]["test"]["y"], result_kormedmcqa["dentist"])
-    result_df.loc["kormedmcqa_doctor_acc", option], result_df.loc["kormedmcqa_doctor_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["doctor"]["test"]["y"], result_kormedmcqa["doctor"])
-    result_df.loc["kormedmcqa_nurse_acc", option], result_df.loc["kormedmcqa_nurse_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["nurse"]["test"]["y"], result_kormedmcqa["nurse"])
-    result_df.loc["kormedmcqa_pharm_acc", option], result_df.loc["kormedmcqa_pharm_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["pharm"]["test"]["y"], result_kormedmcqa["pharm"])
+        result_df.loc["kormedmcqa_dentist_acc", option], result_df.loc["kormedmcqa_dentist_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["dentist"]["test"]["y"], result_kormedmcqa["dentist"])
+        result_df.loc["kormedmcqa_doctor_acc", option], result_df.loc["kormedmcqa_doctor_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["doctor"]["test"]["y"], result_kormedmcqa["doctor"])
+        result_df.loc["kormedmcqa_nurse_acc", option], result_df.loc["kormedmcqa_nurse_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["nurse"]["test"]["y"], result_kormedmcqa["nurse"])
+        result_df.loc["kormedmcqa_pharm_acc", option], result_df.loc["kormedmcqa_pharm_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.kormedmcqa_datasets["pharm"]["test"]["y"], result_kormedmcqa["pharm"])
+        result_df.loc["medqa_5option_acc", option], result_df.loc["medqa_5option_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.medqa_5options_datasets["test"]["y"], result_medqa_5options)
+        result_df.loc["medqa_4option_acc", option], result_df.loc["medqa_4option_f1(macro)", option] = evaluation_pipeline.calculate_metrics(evaluation_pipeline.datasets.medqa_4options_datasets["test"]["y"], result_medqa_4options)
 
-    for idx, row in result_df[option].items():
-        print(f"{idx}: {row}")
+        for idx, row in result_df[option].items():
+            print(f"{idx}: {row}")
 
-    result_df.to_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
+        result_df.to_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
