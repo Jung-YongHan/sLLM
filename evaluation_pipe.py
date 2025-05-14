@@ -19,6 +19,7 @@ class EvaluationPipeline:
                 tokenizer=model_dir,
                 device_map="auto",
                 return_full_text=False,
+                max_new_tokens=300,
                 trust_remote_code=True,
             )
         elif model_id is not None:
@@ -38,6 +39,7 @@ class EvaluationPipeline:
                     tokenizer=model_id,
                     device_map="auto",
                     return_full_text=False,
+                    max_new_tokens=300,
                     trust_remote_code=True,
                 )
             else:
@@ -49,6 +51,7 @@ class EvaluationPipeline:
                     tokenizer=model_id,
                     device_map="auto",
                     return_full_text=False,
+                    max_new_tokens=300,
                     trust_remote_code=True,
                 )
         elif model_dir is not None and model_id is not None: raise ValueError("model_dir and model_id cannot be both set.")
@@ -66,13 +69,15 @@ class EvaluationPipeline:
         for name, dataset in zip(["dentist","doctor","nurse","pharm"], [dentist_test, doctor_test, nurse_test, pharm_test]):
             answer_list = []
             for data in tqdm(iterable=dataset["X"], desc=f"Evaluating {name}",
-                             total=len(dataset)):
+                             total=len(dataset["X"])):
                 if cot:
                     fewshot_cot = "\n".join(self.datasets.kormedmcqa_cot_data[name])
-                    answer = self.inference_pipeline(fewshot_cot + "\n" + data)
+                    answer: str = self.inference_pipeline(fewshot_cot + "\n" + data)[0]["generated_text"]
+                    answer_idx = answer.index("따라서")
+                    preprocessed_answer = answer[answer_idx:answer_idx+20]
                 else:
                     answer = self.inference_pipeline(data)
-                preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
+                    preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
                 if "A" in preprocessed_answer:
                     answer_list.append("A")
                 elif "B" in preprocessed_answer:
@@ -94,7 +99,7 @@ class EvaluationPipeline:
         medqa_test = self.datasets.medqa_5options_datasets["test"]
         answers  = []
         for data in tqdm(medqa_test["X"], desc="Evaluating MedQA",
-                         total=len(medqa_test)):
+                         total=len(medqa_test["X"])):
             answer = self.inference_pipeline(data)
             preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
             if "A" in preprocessed_answer:
@@ -116,7 +121,7 @@ class EvaluationPipeline:
         medqa_test = self.datasets.medqa_4options_datasets["test"]
         answers = []
         for data in tqdm(medqa_test["X"], desc="Evaluating MedQA",
-                         total=len(medqa_test)):
+                         total=len(medqa_test["X"])):
             answer = self.inference_pipeline(data)
             preprocessed_answer = answer[0]["generated_text"].split("\n")[0]
             if "A" in preprocessed_answer:

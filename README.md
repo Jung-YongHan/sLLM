@@ -14,6 +14,7 @@
 - 전체 DeepSpeed ZeRO 사용
 - attn_implementation은 flash_attention_2 사용
 - pre-trained 모델이 입력을 그대로 출력하는 경향 때문에 do_sample을 False로 설정하고 repeatition_penalty를 1.5로 줌
+- tokenizer는 `max_length=3500`, `truncation=True`
 
 ### baseline(no finetuning/no quantization)
 

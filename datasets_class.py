@@ -1,12 +1,11 @@
 import json
-from re import X
 
 from datasets import Dataset, load_dataset
 
 
 class CustomDataset:
     def __init__(self, kormedmcqa_dir="sean0042/KorMedMCQA", medqa_5options_dir="US/", medqa_4options_dir="US/4_options/"):
-        num_to_alpha = [None, "A", "B", "C", "D", "E"]
+        num_to_alpha = ["", "A", "B", "C", "D", "E"]
         
         self.kormedmcqa_datasets = {
             "dentist":
@@ -135,6 +134,33 @@ class CustomDataset:
 '''
         return x
     
+    def generate_kormedmcqa_finetuning_prompt(self, x) -> dict[str, str]:
+        x["question"] = f'''# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
+## 질문: {x["question"]}
+- A: {x["A"]}
+- B: {x["B"]}
+- C: {x["C"]}
+- D: {x["D"]}
+- E: {x["E"]}
+
+정답: {x["answer"]}
+'''
+        return x
+
+    def generate_kormedmcqa_cot_prompt(self, x) -> dict[str, str]:
+        x["cot"] = f'''# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
+## 질문: {x["question"]}
+- A: {x["A"]}
+- B: {x["B"]}
+- C: {x["C"]}
+- D: {x["D"]}
+- E: {x["E"]}
+
+정답: =
+{x["cot"]}
+'''
+        return x
+    
     def generate_medqa_5options_prompt(self, x) -> dict[str, str]:
         x["question"] = f'''# Read the following question and select only the most appropriate answer from the given options.
 ## Question: {x["question"]}
@@ -145,6 +171,19 @@ class CustomDataset:
 - E: {x["options"]["E"]}
 
 Answer: 
+'''
+        return x
+    
+    def generate_medqa_5options_finetuning_prompt(self, x) -> dict[str, str]:
+        x["question"] = f'''# Read the following question and select only the most appropriate answer from the given options.
+## Question: {x["question"]}
+- A: {x["options"]["A"]}
+- B: {x["options"]["B"]}
+- C: {x["options"]["C"]}
+- D: {x["options"]["D"]}
+- E: {x["options"]["E"]}
+
+Answer: {x["answer_idx"]}
 '''
         return x
     
@@ -160,17 +199,17 @@ Answer:
 '''
         return x
     
-    def generate_kormedmcqa_cot_prompt(self, x) -> dict[str, str]:
-        x["cot"] = f'''# 다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.
-## 질문: {x["question"]}
-- A: {x["A"]}
-- B: {x["B"]}
-- C: {x["C"]}
-- D: {x["D"]}
-- E: {x["E"]}
+    def generate_medqa_4options_finetuning_prompt(self, x) -> dict[str, str]:
+        x["question"] = f'''# Read the following question and select the most appropriate answer from the given options.
+## Question: {x["question"]}
+- A: {x["options"]["A"]}
+- B: {x["options"]["B"]}
+- C: {x["options"]["C"]}
+- D: {x["options"]["D"]}
 
-정답: x["cot"]
+Answer: {x["answer_idx"]}
 '''
+
         return x
 
 # testcode

@@ -1,4 +1,5 @@
 import torch
+from datasets import Dataset
 from peft import LoraConfig
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -45,14 +46,65 @@ sota_10b_model_id_list = [
 ]
 
 sota_1b_model_kwargs = {
-    "google/gemma-3-1b-it": {
-        "per_device_train_batch_size": 8,
-        "per_device_eval_batch_size": 8,
+    "Qwen/Qwen3-1.7B": {
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "learning_rate": 1e-4,
         "num_train_epochs": 3,
-        "logging_steps": 10,
-        "save_steps": 500,
+        "logging_steps": 500,
+        "save_strategy": "best",
         "eval_steps": 500,
-        "save_total_limit": 2,
+    },
+    "Qwen/Qwen2.5-1.5B-Instruct": {
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "learning_rate": 1e-4,
+        "num_train_epochs": 3,
+        "logging_steps": 500,
+        "save_strategy": "best",
+        "eval_steps": 500,
+    },
+    "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B": {
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "learning_rate": 1e-4,
+        "num_train_epochs": 3,
+        "logging_steps": 500,
+        "save_strategy": "best",
+        "eval_steps": 500,
+    },
+    "google/gemma-3-1b-it": {
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "learning_rate": 1e-4,
+        "num_train_epochs": 3,
+        "logging_steps": 500,
+        "save_strategy": "best",
+        "eval_steps": 500,
+    },
+    "google/gemma-3-1b-it": {
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "learning_rate": 1e-4,
+        "num_train_epochs": 3,
+        "logging_steps": 500,
+        "save_strategy": "best",
+        "eval_steps": 500,
+    },
+    "meta-llama/Llama-3.2-1B-Instruct": {
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "learning_rate": 1e-4,
+        "num_train_epochs": 3,
+        "logging_steps": 500,
+        "save_strategy": "best",
+        "eval_steps": 500,
     }
 }
 
@@ -60,6 +112,7 @@ sota_1b_model_kwargs = {
 class FineTuner:
     def __init__(self, model_id, is_quantization=False, is_lora=False, **kwargs):
         self.model_id = model_id
+        self.tokenizer = None
         
         if is_quantization:
             self.quantization_config = BitsAndBytesConfig(
@@ -82,30 +135,33 @@ class FineTuner:
         else: self.lora_config = None
         
     def load_model_and_tokenizer(self):
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, use_fast=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_id,
+            padding_side="left",
+            trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
             quantization_config=self.quantization_config,
             attn_implementation="flash_attention_2",
+            torch_dtype=torch.bfloat16,
             device_map="auto",
             trust_remote_code=True,
         )
         if self.lora_config:
             self.model.add_adapter(self.lora_config)
+
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        
+        if self.model.config.pad_token_id is None:
+            self.model.config.pad_token_id = self.tokenizer.pad_token_id
             
     def train(self, train_dataset, eval_dataset, output_dir, **kwargs):
         training_args = TrainingArguments(
             output_dir=output_dir,
-            per_device_train_batch_size=kwargs.get("train_batch_size", 8),
-            per_device_eval_batch_size=kwargs.get("eval_batch_size", 8),
-            num_train_epochs=kwargs.get("num_train_epochs", 3),
-            logging_dir=f"{output_dir}/logs",
-            logging_steps=kwargs.get("logging_steps", 10),
-            save_steps=kwargs.get("save_steps", 500),
-            eval_strategy="steps",
-            eval_steps=kwargs.get("eval_steps", 500),
-            save_total_limit=kwargs.get("save_total_limit", 2),
-            deepspeed="deepspeed_config.json"
+            metric_for_best_model="accuracy",
+            #deepspeed="deepspeed_config.json",
+            **kwargs
         )
         
         trainer = Trainer(
@@ -116,14 +172,12 @@ class FineTuner:
         )
         
         trainer.train()
-        trainer.evaluate()
-        trainer.save_model(output_dir)
         
     def test(self, test_dataset):
         self.model.eval()
         predictions = []
         for example in test_dataset:
-            inputs = self.tokenizer(example, return_tensors="pt").to(self.model.device)
+            inputs = self.tokenizer(example['X'], return_tensors="pt").to(self.model.device)
             
             with torch.no_grad():
                 outputs = self.model.generate(**inputs)
@@ -134,18 +188,52 @@ class FineTuner:
         return predictions
 
 if __name__ == "__main__":
-    
-    option = "lora(r=32,a=64)"
+
+    option = "baseline(finetuning/no quantization/no cot)"
     
     datasets = CustomDataset()
     
-    train_dataset = datasets.medqa_5options_datasets["train"]
-    eval_dataset = datasets.medqa_5options_datasets["valid"]
-    test_dataset = datasets.medqa_5options_datasets["test"]
+    # Original datasets
+    raw_train_dataset = Dataset.from_dict(datasets.medqa_5options_datasets["train"])
+    raw_eval_dataset = Dataset.from_dict(datasets.medqa_5options_datasets["valid"])
     
     for model_id in sota_1b_model_id_list:
-        fine_tuner = FineTuner(model_id, is_quantization=False, is_lora=True, lora_r=64, lora_alpha=64)
+        fine_tuner = FineTuner(model_id, is_quantization=False, is_lora=False, lora_r=32, lora_alpha=64)
         fine_tuner.load_model_and_tokenizer()
-        fine_tuner.train(train_dataset, eval_dataset, output_dir=f"./output/{model_id.split('/')[-1]}")
-        fine_tuner.model.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}")
-        fine_tuner.tokenizer.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}")
+
+        def preprocess_function(examples):
+            # Construct input texts by concatenating prompt and answer
+            # 'X' is the prompt ending with "Answer: "
+            # 'y' is the answer character (e.g., "A")
+            inputs = [prompt + str(answer) for prompt, answer in zip(examples['X'], examples['y'])]
+            
+            # Tokenize the combined texts
+            # Ensure max_length and truncation are set to prevent overly long sequences
+            model_inputs = fine_tuner.tokenizer(
+                inputs, 
+                padding="max_length",
+                max_length=3500,
+                truncation=True
+            )
+            
+            # For Causal LM, labels are typically the input_ids themselves
+            model_inputs["labels"] = model_inputs["input_ids"].copy()
+            return model_inputs
+
+        # Apply preprocessing
+        # Remove original columns to avoid conflicts
+        tokenized_train_dataset = raw_train_dataset.map(
+            preprocess_function,
+            batched=True,
+            remove_columns=raw_train_dataset.column_names
+        )
+        tokenized_eval_dataset = raw_eval_dataset.map(
+            preprocess_function,
+            batched=True,
+            remove_columns=raw_eval_dataset.column_names
+        )
+        
+        fine_tuner.train(tokenized_train_dataset, tokenized_eval_dataset, output_dir=f"./output/{model_id.split('/')[-1]}/medqa_5options",
+                         **sota_1b_model_kwargs[model_id])
+        fine_tuner.model.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}/medqa_5options")
+        fine_tuner.tokenizer.save_pretrained(f"./fine_tuned/{model_id.split('/')[-1]}_{option}/medqa_5options")
