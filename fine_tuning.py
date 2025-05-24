@@ -4,6 +4,7 @@ from peft import LoraConfig
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.trainer import Trainer
+from trl import SFTTrainer, SFTConfig
 from transformers.training_args import TrainingArguments
 from transformers.utils.quantization_config import BitsAndBytesConfig
 
@@ -160,16 +161,30 @@ class FineTuner:
             self.model.config.pad_token_id = self.tokenizer.pad_token_id
 
     def train(self, train_dataset, eval_dataset, output_dir, **kwargs):
-        training_args = TrainingArguments(
+
+        # training_args = TrainingArguments(
+        #     output_dir=output_dir,
+        #     metric_for_best_model="accuracy",
+        #     # deepspeed="deepspeed_config.json",
+        #     **kwargs,
+        # )
+
+        stf_config = SFTConfig(
             output_dir=output_dir,
             metric_for_best_model="accuracy",
-            # deepspeed="deepspeed_config.json",
+            max_seq_length=3500,
+            packing=True,
+            completion_only_loss=False,  # Set to True if you want to use only the completion part for loss calculation
+            eos_token=self.tokenizer.eos_token,
+            pad_token=self.tokenizer.pad_token,
+            remove_unused_columns=True,
+            eval_packing=False,
             **kwargs,
         )
 
-        trainer = Trainer(
+        trainer = SFTTrainer(
             model=self.model,
-            args=training_args,
+            args=stf_config,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
         )
@@ -180,9 +195,14 @@ class FineTuner:
         self.model.eval()
         predictions = []
         for example in test_dataset:
-            inputs = self.tokenizer(example["X"], return_tensors="pt").to(
-                self.model.device
-            )
+            # inputs = self.tokenizer(example["X"], return_tensors="pt").to(
+            #     self.model.device
+            # )
+
+            inputs = self.tokenizer(
+                example["prompt"],
+                return_tensors="pt",
+            ).to(self.model.device)
 
             with torch.no_grad():
                 outputs = self.model.generate(**inputs)
@@ -209,41 +229,50 @@ if __name__ == "__main__":
         )
         fine_tuner.load_model_and_tokenizer()
 
-        def preprocess_function(examples):
-            # Construct input texts by concatenating prompt and answer
-            # 'X' is the prompt ending with "Answer: "
-            # 'y' is the answer character (e.g., "A")
-            inputs = [
-                prompt + str(answer)
-                for prompt, answer in zip(examples["X"], examples["y"])
-            ]
+        # def preprocess_function(examples):
+        #     # Construct input texts by concatenating prompt and answer
+        #     # 'X' is the prompt ending with "Answer: "
+        #     # 'y' is the answer character (e.g., "A")
+        #     inputs = [
+        #         prompt + str(answer)
+        #         for prompt, answer in zip(examples["X"], examples["y"])
+        #     ]
 
-            # Tokenize the combined texts
-            # Ensure max_length and truncation are set to prevent overly long sequences
-            model_inputs = fine_tuner.tokenizer(
-                inputs, padding="max_length", max_length=3500, truncation=True
-            )
+        #     # Tokenize the combined texts
+        #     # Ensure max_length and truncation are set to prevent overly long sequences
+        #     model_inputs = fine_tuner.tokenizer(
+        #         inputs, padding="max_length", max_length=3500, truncation=True
+        #     )
 
-            # For Causal LM, labels are typically the input_ids themselves
-            model_inputs["labels"] = model_inputs["input_ids"].copy()
-            return model_inputs
+        #     # For Causal LM, labels are typically the input_ids themselves
+        #     model_inputs["labels"] = model_inputs["input_ids"].copy()
+        #     return model_inputs
 
-        # Apply preprocessing
-        # Remove original columns to avoid conflicts
-        tokenized_train_dataset = raw_train_dataset.map(
-            preprocess_function,
-            batched=True,
-            remove_columns=raw_train_dataset.column_names,
-        )
-        tokenized_eval_dataset = raw_eval_dataset.map(
-            preprocess_function,
-            batched=True,
-            remove_columns=raw_eval_dataset.column_names,
-        )
+        # # Apply preprocessing
+        # # Remove original columns to avoid conflicts
+        # tokenized_train_dataset = raw_train_dataset.map(
+        #     preprocess_function,
+        #     batched=True,
+        #     remove_columns=raw_train_dataset.column_names,
+        # )
+        # tokenized_eval_dataset = raw_eval_dataset.map(
+        #     preprocess_function,
+        #     batched=True,
+        #     remove_columns=raw_eval_dataset.column_names,
+        # )
+
+        def _convert_to_prompt_response(example):
+            return {
+                "prompt": example["X"],
+                "completion": example["y"],
+            }
+
+        train_dataset = raw_train_dataset.map(_convert_to_prompt_response, batched=True, remove_columns=raw_train_dataset.column_names)
+        eval_dataset = raw_eval_dataset.map(_convert_to_prompt_response, batched=True, remove_columns=raw_eval_dataset.column_names)
 
         fine_tuner.train(
-            tokenized_train_dataset,
-            tokenized_eval_dataset,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
             output_dir=f"./output/{model_id.split('/')[-1]}/medqa_5options",
             **sota_1b_model_kwargs[model_id],
         )
