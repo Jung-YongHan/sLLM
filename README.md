@@ -9,6 +9,11 @@
 
 - [Kweon, S., Choi, B., Chu, G., Song, J., Hyeon, D., Gan, S., ... & Choi, E. (2024). KorMedMCQA: multi-choice question answering benchmark for Korean healthcare professional licensing examinations. arXiv preprint arXiv:2403.01469.](https://doi.org/10.48550/arXiv.2403.01469)
 
+### 데이터셋
+- 영어, 한국어 데이터셋으로 sLLM 진단 결과 측정
+- 영어: 미국 의사 면허 시험(USMLE)을 기반으로 한 12,000여 개의 문제로 구성
+- 한국어: KorMedMCQA 등을 기반으로 7,469개의 문제로 구성
+
 ## 옵션별 실험환경
 
 - 전체 DeepSpeed ZeRO 사용
