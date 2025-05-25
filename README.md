@@ -1,6 +1,6 @@
 # README
 
-![The Result of Experiments](result.png)
+![The Result of Experiments](result_pretty.png)
 
 - 하단의 모델 외에는 [KorMedMCQA: Multi-Choice Question Answering Benchmark for Korean Healthcare Professional Licensing Examinations의 Appendix C](https://doi.org/10.48550/arXiv.2403.01469)에서 가져옴
 - Closed Model의 파라미터는 추정 값
@@ -23,11 +23,12 @@
 
 ### baseline(no finetuning/no quantization)
 
-- 모델 로딩 조건 그대로 inference만 진행
-
-### baseline(full finetuning/no quantization)
-
-- finetuning 하이퍼 파라미터는 다음과 같이 사용
+- finetuning, quantization(BitsAndBytes/AWQ), LoRA, CoT 등을 조합하면서 테스팅
+  - finetuning은 full finetuning을 가리킴
+  - BitsAndBytes는 사후 양자화, LoRA도 같이 활성화된다면 QLoRA 방식
+  - AWQ는 훈련 중 양자화로 huggingface에서 공식적으로 업로드된 모델은 다음과 같음
+    - EXAONE3.5 전체 파라미터, Gemma3 전체 파라미터(QAT 모델), Qwen3 전체 파라미터, Qwen2.5 전체 파라미터
+  - CoT는 KorMedMCQA에 한함, cot를 위한 5-shot 데이터가 따로 있음
 
 #### Gemma3 1B
 
@@ -47,7 +48,7 @@ training_args = TrainingArguments(
 )
 ```
 
-### baseline(no finetuning/quantization)
+### BitsAndBytes Quantization
 
 - 모델 로딩 후 BitsAndBytes 인스턴스를 통해 하이퍼 파라미터를 다음과 같이 설정
 
@@ -57,11 +58,6 @@ training_args = TrainingArguments(
 |bnb_4bit_use_double_quant|True|
 |bnb_4bit_quant_type|nf4|
 |bnb_4bit_compute_dtype|bloat16|
-
-### baseline(full finetuning/quantization)
-
-- 양자화 하이퍼 파라미터는 위와 동일
-- finetuning 하이퍼 파라미터는 다음과 같이 사용
 
 ### lora(r=32/a=64)
 
