@@ -3,9 +3,7 @@ from datasets import Dataset
 from peft import LoraConfig
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
-from transformers.trainer import Trainer
 from trl import SFTTrainer, SFTConfig
-from transformers.training_args import TrainingArguments
 from transformers.utils.quantization_config import BitsAndBytesConfig
 
 from datasets_class import CustomDataset
@@ -27,6 +25,7 @@ sota_3b_model_id_list = [
     "microsoft/Phi-4-mini-instruct",
     "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct",
     "LGAI-EXAONE/EXAONE-Deep-2.4B",
+    "microsoft/Phi-4-mini-reasoning",
     # "microsoft/bitnet-b1.58-2B-4T"
 ]
 
@@ -43,7 +42,28 @@ sota_10b_model_id_list = [
     "google/gemma-3-12b-it",
     "meta-llama/Llama-3.2-11B-Vision-Instruct",
     "microsoft/Phi-4",
-    # "microsoft/Phi-4-reasoning"
+    "microsoft/Phi-4-reasoning",
+    "microsoft/Phi-4-reasoning-plus",
+]
+
+sota_30b_quantized_model_id_list = [
+    "google/gemma-3-27b-it-qat-q4_0-gguf",
+    "Qwen/QwQ-32B-AWQ",
+    "Qwen/Qwen2.5-32B-Instruct-AWQ",
+    "Qwen/Qwen3-32B-AWQ",
+    "LGAI-EXAONE/EXAONE-Deep-32B-AWQ",
+],
+
+sota_70b_quantized_model_id_list = [
+    "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
+    "Qwen/Qwen2.5-72B-Instruct-AWQ",
+]
+
+medical_model_id_list = [
+    "epfl-llm/meditron-7b",
+    "epfl-llm/meditron-70b",
+    "google/medgemma-4b-it",
+    "google/medgemma-27b-text-it",
 ]
 
 sota_1b_model_kwargs = {
@@ -162,13 +182,6 @@ class FineTuner:
 
     def train(self, train_dataset, eval_dataset, output_dir, **kwargs):
 
-        # training_args = TrainingArguments(
-        #     output_dir=output_dir,
-        #     metric_for_best_model="accuracy",
-        #     # deepspeed="deepspeed_config.json",
-        #     **kwargs,
-        # )
-
         stf_config = SFTConfig(
             output_dir=output_dir,
             metric_for_best_model="accuracy",
@@ -195,10 +208,6 @@ class FineTuner:
         self.model.eval()
         predictions = []
         for example in test_dataset:
-            # inputs = self.tokenizer(example["X"], return_tensors="pt").to(
-            #     self.model.device
-            # )
-
             inputs = self.tokenizer(
                 example["prompt"],
                 return_tensors="pt",
