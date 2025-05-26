@@ -5,129 +5,9 @@ from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from trl import SFTTrainer, SFTConfig
 from transformers.utils.quantization_config import BitsAndBytesConfig
+import json
 
 from datasets_class import CustomDataset
-
-sota_1b_model_id_list = [
-    "Qwen/Qwen3-1.7B",
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
-    "google/gemma-3-1b-it",
-    "meta-llama/Llama-3.2-1B-Instruct",
-]
-
-sota_3b_model_id_list = [
-    "Qwen/Qwen3-4B",
-    "Qwen/Qwen2.5-3B-Instruct",
-    "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-3B",
-    "google/gemma-3-4b-it",
-    "meta-llama/Llama-3.2-3B-Instruct",
-    "microsoft/Phi-4-mini-instruct",
-    "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct",
-    "LGAI-EXAONE/EXAONE-Deep-2.4B",
-    "microsoft/Phi-4-mini-reasoning",
-    # "microsoft/bitnet-b1.58-2B-4T"
-]
-
-sota_8b_model_id_list = [
-    "Qwen/Qwen3-8B",
-    "Qwen/Qwen2.5-7B-Instruct",
-    "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct",
-    "LGAI-EXAONE/EXAONE-Deep-7.8B",
-]
-
-sota_10b_model_id_list = [
-    "Qwen/Qwen3-14B",
-    "Qwen/Qwen2.5-14B-Instruct",
-    "google/gemma-3-12b-it",
-    "meta-llama/Llama-3.2-11B-Vision-Instruct",
-    "microsoft/Phi-4",
-    "microsoft/Phi-4-reasoning",
-    "microsoft/Phi-4-reasoning-plus",
-]
-
-sota_30b_quantized_model_id_list = [
-    "google/gemma-3-27b-it-qat-q4_0-gguf",
-    "Qwen/QwQ-32B-AWQ",
-    "Qwen/Qwen2.5-32B-Instruct-AWQ",
-    "Qwen/Qwen3-32B-AWQ",
-    "LGAI-EXAONE/EXAONE-Deep-32B-AWQ",
-],
-
-sota_70b_quantized_model_id_list = [
-    "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
-    "Qwen/Qwen2.5-72B-Instruct-AWQ",
-]
-
-medical_model_id_list = [
-    "epfl-llm/meditron-7b",
-    "epfl-llm/meditron-70b",
-    "google/medgemma-4b-it",
-    "google/medgemma-27b-text-it",
-]
-
-sota_1b_model_kwargs = {
-    "Qwen/Qwen3-1.7B": {
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 8,
-        "learning_rate": 1e-4,
-        "num_train_epochs": 3,
-        "logging_steps": 500,
-        "save_strategy": "best",
-        "eval_steps": 500,
-    },
-    "Qwen/Qwen2.5-1.5B-Instruct": {
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 8,
-        "learning_rate": 1e-4,
-        "num_train_epochs": 3,
-        "logging_steps": 500,
-        "save_strategy": "best",
-        "eval_steps": 500,
-    },
-    "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B": {
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 8,
-        "learning_rate": 1e-4,
-        "num_train_epochs": 3,
-        "logging_steps": 500,
-        "save_strategy": "best",
-        "eval_steps": 500,
-    },
-    "google/gemma-3-1b-it": {
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 8,
-        "learning_rate": 1e-4,
-        "num_train_epochs": 3,
-        "logging_steps": 500,
-        "save_strategy": "best",
-        "eval_steps": 500,
-    },
-    "google/gemma-3-1b-it": {
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 8,
-        "learning_rate": 1e-4,
-        "num_train_epochs": 3,
-        "logging_steps": 500,
-        "save_strategy": "best",
-        "eval_steps": 500,
-    },
-    "meta-llama/Llama-3.2-1B-Instruct": {
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 8,
-        "learning_rate": 1e-4,
-        "num_train_epochs": 3,
-        "logging_steps": 500,
-        "save_strategy": "best",
-        "eval_steps": 500,
-    },
-}
 
 
 class FineTuner:
@@ -231,6 +111,10 @@ if __name__ == "__main__":
     # Original datasets
     raw_train_dataset = Dataset.from_dict(datasets.medqa_5options_datasets["train"])
     raw_eval_dataset = Dataset.from_dict(datasets.medqa_5options_datasets["valid"])
+
+    # Load jsons
+    
+    models = 
 
     for model_id in sota_1b_model_id_list:
         fine_tuner = FineTuner(
