@@ -7,7 +7,7 @@ from trl import SFTTrainer, SFTConfig
 from transformers.utils.quantization_config import BitsAndBytesConfig
 import json
 
-from datasets_class import CustomDataset
+from data_organization import CustomDataset
 
 
 class FineTuner:

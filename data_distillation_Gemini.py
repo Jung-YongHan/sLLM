@@ -5,7 +5,7 @@ import time
 from google.genai import Client, errors, types
 from tqdm import tqdm
 
-from datasets_class import CustomDataset
+from data_organization import CustomDataset
 
 
 def generate(text: str):

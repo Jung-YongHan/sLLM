@@ -5,7 +5,7 @@ from transformers.configuration_utils import PretrainedConfig
 from transformers.pipelines import pipeline
 from transformers.utils.quantization_config import BitsAndBytesConfig
 
-from datasets_class import CustomDataset
+from data_organization import CustomDataset
 from fine_tuning import *
 
 
