@@ -10,9 +10,14 @@
 - [Kweon, S., Choi, B., Chu, G., Song, J., Hyeon, D., Gan, S., ... & Choi, E. (2024). KorMedMCQA: multi-choice question answering benchmark for Korean healthcare professional licensing examinations. arXiv preprint arXiv:2403.01469.](https://doi.org/10.48550/arXiv.2403.01469)
 
 ### 데이터셋
+
 - 영어, 한국어 데이터셋으로 sLLM 진단 결과 측정
-- 영어: 미국 의사 면허 시험(USMLE)을 기반으로 한 12,000여 개의 문제로 구성
-- 한국어: KorMedMCQA 등을 기반으로 7,469개의 문제로 구성
+- 영어
+  - [MedQA](https://github.com/jind11/MedQA)
+  - 미국 의사 면허 시험(USMLE)을 기반으로 한 12,000여 개의 문제로 구성
+- 한국어
+  - [KorMedMCQA](https://huggingface.co/datasets/sean0042/KorMedMCQA)
+  - 한국 의료 면허 시험을 기반으로 7,469개의 문제로 구성
 
 ## 옵션별 실험환경
 
@@ -59,6 +64,10 @@ training_args = TrainingArguments(
 |bnb_4bit_quant_type|nf4|
 |bnb_4bit_compute_dtype|bloat16|
 
-### lora(r=32/a=64)
+### AWQ
 
-### qlora(r=32/a=64)
+- 파라미터 수가 큰 모델을 우선으로 함
+
+### LoRA(r=32/a=64)
+
+### QLoRA(r=32/a=64)

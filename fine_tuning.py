@@ -114,9 +114,12 @@ if __name__ == "__main__":
 
     # Load jsons
     
-    models = 
+    with open("models.json1", "r") as f:
+        models = json.load(f)
+    with open("models_kwargs.json", "r") as f:
+        models_kwargs = json.load(f)
 
-    for model_id in sota_1b_model_id_list:
+    for model_id in models["sota_1b_model_id_list"]:
         fine_tuner = FineTuner(
             model_id, is_quantization=False, is_lora=False, lora_r=32, lora_alpha=64
         )
@@ -167,7 +170,7 @@ if __name__ == "__main__":
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             output_dir=f"./output/{model_id.split('/')[-1]}/medqa_5options",
-            **sota_1b_model_kwargs[model_id],
+            **models_kwargs["sota_1b_model_kwargs"][model_id],
         )
         fine_tuner.model.save_pretrained(
             f"./fine_tuned/{model_id.split('/')[-1]}_{option}/medqa_5options"
