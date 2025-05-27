@@ -1,13 +1,12 @@
+import json
+
 import torch
-from datasets import Dataset
+from datasets import load_dataset
 from peft import LoraConfig
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
-from trl import SFTTrainer, SFTConfig
 from transformers.utils.quantization_config import BitsAndBytesConfig
-import json
-
-from data_organization import CustomDataset
+from trl import SFTConfig, SFTTrainer
 
 
 class FineTuner:
@@ -40,13 +39,13 @@ class FineTuner:
     def load_model_and_tokenizer(self):
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_id,
-            padding_side="left",  # TODO : 지금 활용할 모델들의 패딩 방향이 모두 left인가?
+            padding_side="left",
             trust_remote_code=True,
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
             quantization_config=self.quantization_config,
-            # attn_implementation="flash_attention_2",
+            #attn_implementation="flash_attention_2",
             torch_dtype=torch.bfloat16,
             device_map="auto",
             trust_remote_code=True,
@@ -64,117 +63,77 @@ class FineTuner:
 
         stf_config = SFTConfig(
             output_dir=output_dir,
-            metric_for_best_model="accuracy",
+            do_train=True,
+            do_eval=True,
+            eval_strategy="steps",
+            load_best_model_at_end=True,
+            metric_for_best_model="eval_loss",
+            greater_is_better=False,
+            #deep_speed=True,  # Enable DeepSpeed if you want to use it
+            torch_compile=True,
             max_seq_length=3500,
             packing=True,
-            completion_only_loss=False,  # Set to True if you want to use only the completion part for loss calculation
-            eos_token=self.tokenizer.eos_token,
-            pad_token=self.tokenizer.pad_token,
-            remove_unused_columns=True,
-            eval_packing=False,
+            dataset_text_field="question",
             **kwargs,
         )
 
         trainer = SFTTrainer(
             model=self.model,
+            processing_class=self.tokenizer,
             args=stf_config,
+            peft_config=self.lora_config,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
         )
 
         trainer.train()
 
-    def test(self, test_dataset):
-        self.model.eval()
-        predictions = []
-        for example in test_dataset:
-            inputs = self.tokenizer(
-                example["prompt"],
-                return_tensors="pt",
-            ).to(self.model.device)
-
-            with torch.no_grad():
-                outputs = self.model.generate(**inputs)
-
-            answer = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            predictions.append(answer)
-
-        return predictions
-
 
 if __name__ == "__main__":
 
-    option = "baseline(finetuning/no quantization/no cot)"
+    options = {
+        "option_finetuning": 1,
+        "option_BitsAndBytes": 0,
+        "option_CoT": 0,
+        "option_LoRA(r=32 a=64)": 0
+    }
 
-    datasets = CustomDataset()
-
-    # Original datasets
-    raw_train_dataset = Dataset.from_dict(datasets.medqa_5options_datasets["train"])
-    raw_eval_dataset = Dataset.from_dict(datasets.medqa_5options_datasets["valid"])
-
-    # Load jsons
-    
-    with open("models.json1", "r") as f:
+    # Load models and their kwargs
+    with open("models.json", "r") as f:
         models = json.load(f)
     with open("models_kwargs.json", "r") as f:
         models_kwargs = json.load(f)
-
+    
+    split_files = {"train": "train.jsonl", "validation": "valid.jsonl", "test": "test.jsonl"}
+    # Load Korean datasets
+    kormedmcqa_dentist = load_dataset("json", data_dir="data/KorMedMCQA/dentist/", data_files=split_files)
+    kormedmcqa_doctor = load_dataset("json", data_dir="data/KorMedMCQA/doctor/", data_files=split_files)
+    kormedmcqa_nurse = load_dataset("json", data_dir="data/KorMedMCQA/nurse/", data_files=split_files)
+    kormedmcqa_pharm = load_dataset("json", data_dir="data/KorMedMCQA/pharm/", data_files=split_files)
+    
+    # Load English datasets
+    medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options", data_files=split_files)
+    medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options", data_files=split_files)
+    
     for model_id in models["sota_1b_model_id_list"]:
         fine_tuner = FineTuner(
-            model_id, is_quantization=False, is_lora=False, lora_r=32, lora_alpha=64
+            model_id,
+            is_quantization=False,
+            is_lora=False,
+            lora_r=32,
+            lora_alpha=64
         )
         fine_tuner.load_model_and_tokenizer()
 
-        # def preprocess_function(examples):
-        #     # Construct input texts by concatenating prompt and answer
-        #     # 'X' is the prompt ending with "Answer: "
-        #     # 'y' is the answer character (e.g., "A")
-        #     inputs = [
-        #         prompt + str(answer)
-        #         for prompt, answer in zip(examples["X"], examples["y"])
-        #     ]
-
-        #     # Tokenize the combined texts
-        #     # Ensure max_length and truncation are set to prevent overly long sequences
-        #     model_inputs = fine_tuner.tokenizer(
-        #         inputs, padding="max_length", max_length=3500, truncation=True
-        #     )
-
-        #     # For Causal LM, labels are typically the input_ids themselves
-        #     model_inputs["labels"] = model_inputs["input_ids"].copy()
-        #     return model_inputs
-
-        # # Apply preprocessing
-        # # Remove original columns to avoid conflicts
-        # tokenized_train_dataset = raw_train_dataset.map(
-        #     preprocess_function,
-        #     batched=True,
-        #     remove_columns=raw_train_dataset.column_names,
-        # )
-        # tokenized_eval_dataset = raw_eval_dataset.map(
-        #     preprocess_function,
-        #     batched=True,
-        #     remove_columns=raw_eval_dataset.column_names,
-        # )
-
-        def _convert_to_prompt_response(example):
-            return {
-                "prompt": example["X"],
-                "completion": example["y"],
-            }
-
-        train_dataset = raw_train_dataset.map(_convert_to_prompt_response, batched=True, remove_columns=raw_train_dataset.column_names)
-        eval_dataset = raw_eval_dataset.map(_convert_to_prompt_response, batched=True, remove_columns=raw_eval_dataset.column_names)
-
         fine_tuner.train(
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-            output_dir=f"./output/{model_id.split('/')[-1]}/medqa_5options",
+            train_dataset=kormedmcqa_doctor["train"],
+            eval_dataset=kormedmcqa_doctor["validation"],
+            output_dir=f"./output/{model_id.split('/')[-1]}/kormedmcqa_doctor",
             **models_kwargs["sota_1b_model_kwargs"][model_id],
         )
         fine_tuner.model.save_pretrained(
-            f"./fine_tuned/{model_id.split('/')[-1]}_{option}/medqa_5options"
+            f"./fine_tuned/{model_id.split('/')[-1]}/kormedmcqa_doctor"
         )
         fine_tuner.tokenizer.save_pretrained(
-            f"./fine_tuned/{model_id.split('/')[-1]}_{option}/medqa_5options"
+            f"./fine_tuned/{model_id.split('/')[-1]}/kormedmcqa_doctor"
         )
