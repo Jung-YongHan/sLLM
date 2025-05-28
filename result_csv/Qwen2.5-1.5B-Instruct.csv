@@ -1,8 +1,8 @@
 data,metric,score,option_finetuning,option_BitsAndBytes,option_CoT,option_LoRA(r=32 a=64)
-medqa_5option,acc,0.2875,0,0,0,0
-medqa_5option,f1(macro),0.2354,0,0,0,0
-medqa_4option,acc,0.2993,0,0,0,0
-medqa_4option,f1(macro),0.2152,0,0,0,0
+medqa_5_options,acc,0.2875,0,0,0,0
+medqa_5_options,f1(macro),0.2354,0,0,0,0
+medqa_4_options,acc,0.2993,0,0,0,0
+medqa_4_options,f1(macro),0.2152,0,0,0,0
 kormedmcqa_dentist,acc,0.1825,0,0,0,0
 kormedmcqa_dentist,f1(macro),0.1784,0,0,0,0
 kormedmcqa_doctor,acc,0.1011,0,0,0,0
@@ -11,10 +11,10 @@ kormedmcqa_nurse,acc,0.2415,0,0,0,0
 kormedmcqa_nurse,f1(macro),0.2378,0,0,0,0
 kormedmcqa_pharm,acc,0.1831,0,0,0,0
 kormedmcqa_pharm,f1(macro),0.1818,0,0,0,0
-medqa_5option,acc,0.3064,0,1,0,0
-medqa_5option,f1(macro),0.2499,0,1,0,0
-medqa_4option,acc,0.3024,0,1,0,0
-medqa_4option,f1(macro),0.2161,0,1,0,0
+medqa_5_options,acc,0.3064,0,1,0,0
+medqa_5_options,f1(macro),0.2499,0,1,0,0
+medqa_4_options,acc,0.3024,0,1,0,0
+medqa_4_options,f1(macro),0.2161,0,1,0,0
 kormedmcqa_dentist,acc,0.1702,0,1,0,0
 kormedmcqa_dentist,f1(macro),0.1668,0,1,0,0
 kormedmcqa_doctor,acc,0.1241,0,1,0,0

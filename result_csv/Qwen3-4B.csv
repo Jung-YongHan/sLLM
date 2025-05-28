@@ -1,8 +1,8 @@
 data,metric,score,option_finetuning,option_BitsAndBytes,option_CoT,option_LoRA(r=32 a=64)
-medqa_5option,acc,0.4713,0,1,0,0
-medqa_5option,f1(macro),0.4553,0,1,0,0
-medqa_4option,acc,0.4595,0,1,0,0
-medqa_4option,f1(macro),0.395,0,1,0,0
+medqa_5_options,acc,0.4713,0,1,0,0
+medqa_5_options,f1(macro),0.4553,0,1,0,0
+medqa_4_options,acc,0.4595,0,1,0,0
+medqa_4_options,f1(macro),0.395,0,1,0,0
 kormedmcqa_dentist,acc,0.4131,0,1,0,0
 kormedmcqa_dentist,f1(macro),0.3388,0,1,0,0
 kormedmcqa_doctor,acc,0.4598,0,1,0,0
