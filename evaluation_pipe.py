@@ -4,13 +4,13 @@ import pandas as pd
 from datasets import Dataset, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
-from transformers.configuration_utils import PretrainedConfig
-from transformers.pipelines import pipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.utils.quantization_config import BitsAndBytesConfig
+from transformers.generation.configuration_utils import GenerationConfig
 
 
 class EvaluationPipeline:
-    def __init__(self, model_dir: str|None=None, model_id: str|None=None, quantization: bool=False):
+    def __init__(self, model_dir: str|None=None, model_id: str|None=None, model_generation_configs: dict|None=None, quantization: bool=False):
         if quantization:
             self.quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -20,40 +20,42 @@ class EvaluationPipeline:
             )
         else:
             self.quantization_config = None
+            
+        if model_generation_configs:
+            self.generation_configs = GenerationConfig(**model_generation_configs)
+        else: self.generation_configs = GenerationConfig()
+
+        self._load_model_and_tokenizer(model_dir, model_id)
         
-        assert model_dir is None or model_id is None, "Either model_dir or model_id must be set."
-        assert model_dir is not None or model_id is not None, "Both model_dir and model_id cannot be set at the same time."
+    def _load_model_and_tokenizer(self, model_dir: str|None=None, model_id: str|None=None):
+        assert not model_dir or not model_id, "Only one of model_dir or model_id should be provided."
         
         if model_dir:
-            self.inference_pipeline = pipeline(
-                task="text-generation",
-                model=model_dir,
-                config=model_dir,
-                tokenizer=model_dir,
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_dir,
+                quantization_config=self.quantization_config,
+                torch_dtype="bfloat16",
                 device_map="auto",
-                return_full_text=False,
-                max_new_tokens=100,
-                
-                trust_remote_code=True,
+                trust_remote_code=True
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_dir,
+                trust_remote_code=True
             )
         elif model_id:
-            self.pretrained_config = PretrainedConfig.from_pretrained(
+            self.model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=self.quantization_config,
-                do_sample=False,
-                repetition_penalty=1.5)
-            self.inference_pipeline = pipeline(
-                task="text-generation",
-                model=model_id,
-                config=self.pretrained_config,
-                tokenizer=model_id,
+                torch_dtype="bfloat16",
                 device_map="auto",
-                return_full_text=False,
-                max_new_tokens=100,
-                trust_remote_code=True,
+                trust_remote_code=True
             )
-            
-        self.inference_pipeline.model.generate
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_id,
+                trust_remote_code=True
+            )
+        else:
+            raise ValueError("Either model_dir or model_id must be provided.")
 
     def generate_answers(self, data: Dataset, cot: list[dict[str, str]] | bool=False, is_Korean=True) -> list[str]:
         if not is_Korean and cot:
@@ -93,9 +95,13 @@ class EvaluationPipeline:
             else:
                 if is_Korean:
                     chat_template = _korean_chat_template(question)
+                    formatted_chat = self.tokenizer.apply_chat_template(chat_template, tokenize=False, return_dict=True, continue_final_message=True, thinking=False)
+                    answers.append(self.model.generate(**formatted_chat, generation_conifg=self.generation_configs))
                 else:
                     chat_template = _english_chat_template(question)
-                answers.append(self.inference_pipeline(chat_template)[0]["generated_text"][-1])
+                    formatted_chat = self.tokenizer.apply_chat_template(chat_template, tokenize=True, return_dict=True, continue_final_message=True, thinking=False)
+                    answers.append(self.model.generate(**formatted_chat, generation_conifg=self.generation_configs))
+                print(answers[-1])
             
         return answers
 
@@ -110,9 +116,11 @@ class EvaluationPipeline:
 
 if __name__ == "__main__":
 
-    # Load models
+    # Load models and generation configurations
     with open("models.json", "r", encoding="utf-8") as f:
         models = json.load(f)
+    with open("model_generation_configs.json", "r", encoding="utf-8") as f:
+        model_generation_configs = json.load(f)
         
     # TODO: cot 데이터 어떻게 불러올 것인지
     # Load Korean datasets
@@ -122,8 +130,8 @@ if __name__ == "__main__":
     kormedmcqa_pharm = load_dataset("json", data_dir="data/KorMedMCQA/pharm/", split=None)
     
     # Load English datasets
-    medqa_4options = load_dataset("json", data_dir="data/MedQA/4options/", split=None)
-    medqa_5options = load_dataset("json", data_dir="data/MedQA/5options/", split=None)
+    medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", split=None)
+    medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", split=None)
 
     for basemodel_id in models["sota_1b_model_id_list"]:
         options = {
@@ -132,13 +140,14 @@ if __name__ == "__main__":
             "option_CoT": 1,
             "option_LoRA(r=32 a=64)": 0
         }
-        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
+        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id, model_generation_configs=model_generation_configs[basemodel_id])
         result_df: pd.DataFrame = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index_col=0)
         
-        for data in [kormedmcqa_dentist, kormedmcqa_doctor, kormedmcqa_nurse, kormedmcqa_pharm, medqa_4options, medqa_5options]:
+        for data_name, data in zip(["kormedmcqa_dentist", "kormedmcqa_doctor", "kormedmcqa_nurse", "kormedmcqa_pharm", "medqa_4_options", "medqa_5_options"],
+                                [kormedmcqa_dentist, kormedmcqa_doctor, kormedmcqa_nurse, kormedmcqa_pharm, medqa_4_options, medqa_5_options]):
             answer_texts = evaluation_pipeline.generate_answers(data["test"])
             labels = data["test"]["answer"]
             accuracy, f1 = evaluation_pipeline.calculate_metrics(labels, answer_texts)
-            
+            result_df.loc[data_name]
             
         result_df.to_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
