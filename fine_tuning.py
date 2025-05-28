@@ -112,8 +112,8 @@ if __name__ == "__main__":
     kormedmcqa_pharm = load_dataset("json", data_dir="data/KorMedMCQA/pharm/", data_files=split_files)
     
     # Load English datasets
-    medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options", data_files=split_files)
-    medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options", data_files=split_files)
+    medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", data_files=split_files)
+    medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", data_files=split_files)
     
     for model_id in models["sota_1b_model_id_list"]:
         fine_tuner = FineTuner(

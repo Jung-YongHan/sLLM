@@ -2,10 +2,9 @@ import json
 import os
 import time
 
+from datasets import load_dataset
 from google.genai import Client, errors, types
 from tqdm import tqdm
-
-from data_organization import CustomDataset
 
 
 def generate(text: str):
@@ -129,7 +128,7 @@ def reprocess_null_answers(filename, sleep_time):
                 pass
 
 
-def process_and_save_dataset(dataset_X, dataset_y, output_filename, description, sleep_time):
+def process_and_save_dataset(dataset_X, dataset_y, output_filename, data_name: str, sleep_time: int | float):
     """
     데이터셋을 처리하고 결과를 JSONL 파일에 저장합니다.
     오류 발생 시 진행 상황을 저장하고 다음 시작 인덱스를 안내합니다.
@@ -170,7 +169,7 @@ def process_and_save_dataset(dataset_X, dataset_y, output_filename, description,
     try:
         with open(output_filename, 'a', encoding='utf-8') as f:
             progress_bar = tqdm(range(start_index, len(dataset_X)),
-                                  desc=description,
+                                  desc=data_name,
                                   total=len(dataset_X),
                                   initial=start_index,
                                   unit="item")
@@ -192,13 +191,13 @@ def process_and_save_dataset(dataset_X, dataset_y, output_filename, description,
                     progress_bar.close()
                     print(f"\nAPI 오류 발생 (항목 인덱스 {i}, 첫 50자 질문: '{X[:50]}...'): {e}.")
                     print(f"현재까지의 진행 상황이 '{output_filename}'에 저장되었습니다.")
-                    print(f"다음 실행 시 '{description}'에 대해 {i}번째 인덱스부터 재개해야 합니다.")
+                    print(f"다음 실행 시 '{data_name}'에 대해 {i}번째 인덱스부터 재개해야 합니다.")
                     return i
                 except Exception as e:
                     progress_bar.close()
                     print(f"\n항목 인덱스 {i} 처리 중 예기치 않은 오류 발생 (첫 50자 질문: '{X[:50]}...'): {e}")
                     print(f"현재까지의 진행 상황이 '{output_filename}'에 저장되었습니다.")
-                    print(f"다음 실행 시 '{description}'에 대해 {i}번째 인덱스부터 재개해야 합니다.")
+                    print(f"다음 실행 시 '{data_name}'에 대해 {i}번째 인덱스부터 재개해야 합니다.")
                     return i
             
             progress_bar.close()
@@ -207,90 +206,44 @@ def process_and_save_dataset(dataset_X, dataset_y, output_filename, description,
         print(f"\n파일 처리 중 오류 발생 ('{output_filename}'): {e}")
         return start_index
 
-    print(f"\n{description}: 모든 {len(dataset_X)}개 항목 처리 완료. 결과가 '{output_filename}'에 저장되었습니다.")
+    print(f"\n{data_name}: 모든 {len(dataset_X)}개 항목 처리 완료. 결과가 '{output_filename}'에 저장되었습니다.")
     return len(dataset_X)
 
 if __name__ == "__main__":
-    datasets_obj = CustomDataset()
-
-    dataset_configs = [
-        {
-            "id": "dentist",
-            "data_X": datasets_obj.kormedmcqa_datasets["dentist"]["train"]["X"],
-            "data_y": datasets_obj.kormedmcqa_datasets["dentist"]["train"]["y"],
-            "output_filename_template": "distillation_gemini/distillation_{id}.jsonl",
-            "description_template": "Distillation {id}",
-            "sleep_time": 2.5
-        },
-        {
-            "id": "doctor",
-            "data_X": datasets_obj.kormedmcqa_datasets["doctor"]["train"]["X"],
-            "data_y": datasets_obj.kormedmcqa_datasets["doctor"]["train"]["y"],
-            "output_filename_template": "distillation_gemini/distillation_{id}.jsonl",
-            "description_template": "Distillation {id}",
-            "sleep_time": 2.5
-        },
-        {
-            "id": "nurse",
-            "data_X": datasets_obj.kormedmcqa_datasets["nurse"]["train"]["X"],
-            "data_y": datasets_obj.kormedmcqa_datasets["nurse"]["train"]["y"],
-            "output_filename_template": "distillation_gemini/distillation_{id}.jsonl",
-            "description_template": "Distillation {id}",
-            "sleep_time": 2.5
-        },
-        {
-            "id": "pharm",
-            "data_X": datasets_obj.kormedmcqa_datasets["pharm"]["train"]["X"],
-            "data_y": datasets_obj.kormedmcqa_datasets["pharm"]["train"]["y"],
-            "output_filename_template": "distillation_gemini/distillation_{id}.jsonl",
-            "description_template": "Distillation {id}",
-            "sleep_time": 2.5
-        },
-        {
-            "id": "medqa_5options",
-            "data_X": datasets_obj.medqa_5options_datasets["train"]["X"],
-            "data_y": datasets_obj.medqa_5options_datasets["train"]["y"],
-            "output_filename_template": "distillation_gemini/distillation_medqa_5options.jsonl", # id is part of the name
-            "description_template": "Distillation MedQA 5 options", # id is part of the name
-            "sleep_time": 2.5
-        },
-        {
-            "id": "medqa_4options",
-            "data_X": datasets_obj.medqa_4options_datasets["train"]["X"],
-            "data_y": datasets_obj.medqa_4options_datasets["train"]["y"],
-            "output_filename_template": "distillation_gemini/distillation_medqa_4options.jsonl", # id is part of the name
-            "description_template": "Distillation MedQA 4 options", # id is part of the name
-            "sleep_time": 2.5
-        }
-    ]
+    
+    # Load Korean datasets
+    kormedmcqa_dentist = load_dataset("json", data_dir="data/KorMedMCQA/dentist/", split="train")
+    kormedmcqa_doctor = load_dataset("json", data_dir="data/KorMedMCQA/doctor/", split="train")
+    kormedmcqa_nurse = load_dataset("json", data_dir="data/KorMedMCQA/nurse/", split="train")
+    kormedmcqa_pharm = load_dataset("json", data_dir="data/KorMedMCQA/pharm/", split="train")
+    
+    # Load English datasets
+    medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", split="train")
+    medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", split="train")
     
     processed_files = []
+    current_sleep_time = 2.5
 
-    for config in dataset_configs:
-        dataset_X = config["data_X"]
-        dataset_y = config["data_y"]
-        output_filename = config["output_filename_template"].format(id=config["id"])
-        description = config["description_template"].format(id=config["id"])
-        current_sleep_time = config["sleep_time"]
+    for data_name, dataset in zip(["kormedmcqa_dentist", "kormedmcqa_doctor", "kormedmcqa_nurse", "kormedmcqa_pharm", "medqa_4_options", "medqa_5_options"],
+                                 [kormedmcqa_dentist, kormedmcqa_doctor, kormedmcqa_nurse, kormedmcqa_pharm, medqa_4_options, medqa_5_options]):
 
-        print(f"\n--- {description} 처리 시작 ---")
-        processed_count = process_and_save_dataset(dataset_X, dataset_y, output_filename, description, current_sleep_time)
+        print(f"\n--- {data_name} 처리 시작 ---")
+        processed_count = process_and_save_dataset(dataset["question"], dataset["answer"], output_filename, data_name, current_sleep_time)
         
         if os.path.exists(output_filename):
             processed_files.append(output_filename)
 
         if processed_count < len(dataset_X):
-            print(f"--- {description} 처리가 중단되었습니다. 다음 실행 시 인덱스 {processed_count}부터 재개됩니다. ---")
+            print(f"--- {data_name} 처리가 중단되었습니다. 다음 실행 시 인덱스 {processed_count}부터 재개됩니다. ---")
         else:
-            print(f"--- {description} 처리 완료 ---")
+            print(f"--- {data_name} 처리 완료 ---")
     
     print("\n모든 데이터셋에 대한 초기 처리 시도 완료.")
 
     if processed_files:
         print("\n--- 모든 생성된 파일에 대해 Null 답변 재처리 시작 ---")
-        reprocessing_sleep_time = 2.5
         for filename_to_reprocess in processed_files:
-            reprocess_null_answers(filename_to_reprocess, reprocessing_sleep_time)
+            reprocess_null_answers(filename_to_reprocess, current_sleep_time)
         print("\n--- 모든 파일에 대한 Null 답변 재처리 시도 완료 ---")
     else:
         print("\n재처리할 파일이 없습니다 (초기 처리에서 파일이 생성되지 않았거나, 설정된 파일이 없음).")
