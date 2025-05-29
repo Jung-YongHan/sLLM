@@ -1,6 +1,6 @@
 import pandas as pd
 from datasets import load_dataset
-from transformers import AutoTokenizer
+from transformers.models.auto.tokenization_auto import AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-1b-it")
 
