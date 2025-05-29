@@ -100,7 +100,8 @@ class EvaluationPipeline:
                     chat_template = _english_chat_template(question)
             formatted_chat = self.tokenizer.apply_chat_template(chat_template, continue_final_message=True,
                                                                 thinking=False, return_tensors="pt")
-            input_text_length = len(formatted_chat)
+            formatted_chat = formatted_chat.to(self.model.device)
+            input_text_length = len(formatted_chat[0])
             generated_text = self.tokenizer.decode(self.model.generate(formatted_chat, generation_config=self.generation_configs)[0])
             generated_text = generated_text[input_text_length:]
             answers.append(self.preprocess_answer(generated_text))
