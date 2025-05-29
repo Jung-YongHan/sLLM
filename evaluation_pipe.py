@@ -163,12 +163,12 @@ if __name__ == "__main__":
             labels = data["test"]["answer"]
             accuracy, f1 = evaluation_pipeline.calculate_metrics(labels, answer_texts)
             
-            result_df.loc[-1] = [accuracy, "acc", options["option_finetuning"], options["option_BitsAndBytes"],
+            result_df.loc[-1] = [data_name, accuracy, "acc", options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
             result_df.index += 1
             result_df = result_df.sort_index()
             
-            result_df.loc[-1] = [f1, "f1(macro)", options["option_finetuning"], options["option_BitsAndBytes"],
+            result_df.loc[-1] = [data_name, f1, "f1(macro)", options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
             result_df.index += 1
             result_df = result_df.sort_index()
