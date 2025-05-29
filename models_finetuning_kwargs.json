@@ -44,6 +44,24 @@
             "num_train_epochs": 3,
             "save_strategy": "best",
             "eval_steps": 0.2
+        },
+        "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct": {
+            "per_device_train_batch_size": 1,
+            "per_device_eval_batch_size": 1,
+            "gradient_accumulation_steps": 256,
+            "learning_rate": 1e-4,
+            "num_train_epochs": 3,
+            "save_strategy": "best",
+            "eval_steps": 0.2
+        },
+        "LGAI-EXAONE/EXAONE-Deep-2.4B": {
+            "per_device_train_batch_size": 1,
+            "per_device_eval_batch_size": 1,
+            "gradient_accumulation_steps": 256,
+            "learning_rate": 1e-4,
+            "num_train_epochs": 3,
+            "save_strategy": "best",
+            "eval_steps": 0.2
         }
     }
 }
