@@ -39,17 +39,16 @@ class FineTuner:
     def load_model_and_tokenizer(self):
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_id,
-            padding_side="left",
             trust_remote_code=True,
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
             quantization_config=self.quantization_config,
-            #attn_implementation="flash_attention_2",
             torch_dtype=torch.bfloat16,
             device_map="auto",
             trust_remote_code=True,
         )
+
         if self.lora_config:
             self.model.add_adapter(self.lora_config)
 
@@ -59,10 +58,9 @@ class FineTuner:
         if self.model.config.pad_token_id is None:
             self.model.config.pad_token_id = self.tokenizer.pad_token_id
 
-    def train(self, train_dataset, eval_dataset, output_dir, **kwargs):
+    def train(self, train_dataset, eval_dataset, max_seq_length, **kwargs):
 
-        stf_config = SFTConfig(
-            output_dir=output_dir,
+        sft_config = SFTConfig(
             do_train=True,
             do_eval=True,
             eval_strategy="steps",
@@ -71,16 +69,18 @@ class FineTuner:
             greater_is_better=False,
             #deep_speed=True,  # Enable DeepSpeed if you want to use it
             torch_compile=True,
-            max_seq_length=3500,
+            max_seq_length=max_seq_length,
             packing=True,
             dataset_text_field="question",
             **kwargs,
         )
 
+        # TODO: It is strongly recommended to train Gemma3 models with the `eager` attention implementation instead of `sdpa`.
+        # Use `eager` with `AutoModelForCausalLM.from_pretrained('<path-to-checkpoint>', attn_implementation='eager')`.
         trainer = SFTTrainer(
             model=self.model,
             processing_class=self.tokenizer,
-            args=stf_config,
+            args=sft_config,
             peft_config=self.lora_config,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # Load models and their kwargs
     with open("models.json", "r") as f:
         models = json.load(f)
-    with open("models_kwargs.json", "r") as f:
+    with open("models_finetuning_kwargs.json", "r") as f:
         models_kwargs = json.load(f)
     
     split_files = {"train": "train.jsonl", "validation": "valid.jsonl", "test": "test.jsonl"}
@@ -114,6 +114,16 @@ if __name__ == "__main__":
     # Load English datasets
     medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", data_files=split_files)
     medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", data_files=split_files)
+    
+    # max_seq_length_by_dataset
+    max_seq_length_by_dataset = {
+        "kormedmcqa_dentist": 256,
+        "kormedmcqa_doctor": 512,
+        "kormedmcqa_nurse": 256,
+        "kormedmcqa_pharm": 256,
+        "medqa_4_options": 512,
+        "medqa_5_options": 512,
+    }
     
     for model_id in models["sota_1b_model_id_list"]:
         fine_tuner = FineTuner(
@@ -128,7 +138,7 @@ if __name__ == "__main__":
         fine_tuner.train(
             train_dataset=kormedmcqa_doctor["train"],
             eval_dataset=kormedmcqa_doctor["validation"],
-            output_dir=f"./output/{model_id.split('/')[-1]}/kormedmcqa_doctor",
+            max_seq_length=max_seq_length_by_dataset["kormedmcqa_doctor"],
             **models_kwargs["sota_1b_model_kwargs"][model_id],
         )
         fine_tuner.model.save_pretrained(
