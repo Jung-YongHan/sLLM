@@ -1,6 +1,7 @@
 # README
 
-![The Result of Experiments](result_pretty.png)
+![The Result of Experiments](graph/result_pretty.png)
+![Hexagon Chart of the Result](graph/hexagon.png)
 
 - 하단의 모델 외에는 [KorMedMCQA: Multi-Choice Question Answering Benchmark for Korean Healthcare Professional Licensing Examinations의 Appendix C](https://doi.org/10.48550/arXiv.2403.01469)에서 가져옴
 - Closed Model의 파라미터는 추정 값
