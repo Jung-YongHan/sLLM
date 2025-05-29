@@ -66,7 +66,7 @@ class EvaluationPipeline:
             korean_chat_template = [
                 {
                     "role": "system",
-                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n답을 표기할 때는 반드시 '정답: <선택지>' 형식으로 작성해야 합니다."
+                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요."
                 },
                 {
                     "role": "user",
@@ -79,7 +79,7 @@ class EvaluationPipeline:
             english_chat_template = [
                 {
                     "role": "system",
-                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must write the answer in the format 'Answer: <option>'."
+                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation."
                 },
                 {
                     "role": "user",
@@ -116,18 +116,18 @@ class EvaluationPipeline:
         answer = answer.strip()
         answer = [line for line in answer.split("\n") if "정답" in line or "Answer" in line]
         for line in answer:
-            if "A" in line:
+            if "A" in line or "1" in line:
                 return "A"
-            elif "B" in line:
+            elif "B" in line or "2" in line:
                 return "B"
-            elif "C" in line:
+            elif "C" in line or "3" in line:
                 return "C"
-            elif "D" in line:
+            elif "D" in line or "4" in line:
                 return "D"
-            elif "E" in line:
+            elif "E" in line or "5" in line:
                 return "E"
         else:
-            return None
+            return answer
 
 if __name__ == "__main__":
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", split=None)
     medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", split=None)
 
-    for basemodel_id in models["sota_1b_model_id_list"]:
+    for basemodel_id in models["sota_3b_model_id_list"]:
         options = {
             "option_finetuning": False,
             "option_BitsAndBytes": False,
