@@ -99,10 +99,15 @@ class EvaluationPipeline:
                 else:
                     chat_template = _english_chat_template(question)
             formatted_chat = self.tokenizer.apply_chat_template(chat_template, continue_final_message=True,
-                                                                thinking=False, return_tensors="pt")
-            formatted_chat = formatted_chat.to(self.model.device)
+                                                                thinking=False, return_tensors="pt").to(self.model.device)
+            attention_mask = (formatted_chat != self.tokenizer.eos_token_id).long().to(self.model.device)
+            generated_ids = self.model.generate(
+                formatted_chat,
+                attention_mask=attention_mask,
+                generation_config=self.generation_configs,
+            )[0]
             input_text_length = len(formatted_chat[0])
-            generated_text = self.tokenizer.decode(self.model.generate(formatted_chat, generation_config=self.generation_configs)[0])
+            generated_text = self.tokenizer.decode(generated_ids)
             generated_text = generated_text[input_text_length:]
             answers.append(self.preprocess_answer(generated_text))
             
@@ -113,10 +118,9 @@ class EvaluationPipeline:
         f1 = f1_score(labels, predictions, average="macro")
         return round(accuracy, 4), round(f1, 4)
     
-    def preprocess_answer(self, answer: str) -> str | None:
-        answer = answer.strip()
-        answer = [line for line in answer.split("\n") if "정답" in line or "Answer" in line]
-        for line in answer:
+    def preprocess_answer(self, answer: str) -> str:
+        answer_cantidates = [line for line in answer.strip().split("\n") if "정답" in line or "Answer" in line]
+        for line in answer_cantidates:
             if "A" in line or "1" in line:
                 return "A"
             elif "B" in line or "2" in line:
@@ -128,7 +132,7 @@ class EvaluationPipeline:
             elif "E" in line or "5" in line:
                 return "E"
         else:
-            return answer
+            return "Z"
 
 if __name__ == "__main__":
 
