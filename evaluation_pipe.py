@@ -11,7 +11,7 @@ from transformers.generation.configuration_utils import GenerationConfig
 
 
 class EvaluationPipeline:
-    def __init__(self, model_dir: str|None=None, model_id: str|None=None, model_generation_configs: dict|None=None, quantization: bool=False):
+    def __init__(self, model_dir: str|None=None, model_id: str|None=None, quantization: bool=False):
         if quantization:
             self.quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -22,10 +22,6 @@ class EvaluationPipeline:
         else:
             self.quantization_config = None
             
-        if model_generation_configs:
-            self.generation_configs = GenerationConfig(**model_generation_configs)
-        else: self.generation_configs = GenerationConfig
-
         self._load_model_and_tokenizer(model_dir, model_id)
         
     def _load_model_and_tokenizer(self, model_dir: str|None=None, model_id: str|None=None):
@@ -44,6 +40,7 @@ class EvaluationPipeline:
                 device_map="auto",
                 trust_remote_code=True
             )
+            self.generation_configs = GenerationConfig.from_pretrained(model_dir)
         elif model_id:
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_id,
@@ -57,6 +54,7 @@ class EvaluationPipeline:
                 device_map="auto",
                 trust_remote_code=True
             )
+            self.generation_configs = GenerationConfig.from_pretrained(model_id)
         else:
             raise ValueError("Either model_dir or model_id must be provided.")
 
@@ -136,8 +134,6 @@ if __name__ == "__main__":
     # Load models and generation configurations
     with open("models.json", "r", encoding="utf-8") as f:
         models = json.load(f)
-    with open("models_generation_kwargs.json", "r", encoding="utf-8") as f:
-        model_generation_configs = json.load(f)
         
     # TODO: cot 데이터 어떻게 불러올 것인지
     # Load Korean datasets
@@ -157,8 +153,8 @@ if __name__ == "__main__":
             "option_CoT": False,
             "option_LoRA(r=32 a=64)": False
         }
-        evaluation_pipeline = EvaluationPipeline(model_dir=f"finetued/{basemodel_id}", model_generation_configs=model_generation_configs["sota_1b_model_kwargs"][basemodel_id])
-        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id, model_generation_configs=model_generation_configs["sota_1b_model_kwargs"][basemodel_id])
+        #evaluation_pipeline = EvaluationPipeline(model_dir=f"finetued/{basemodel_id}")
+        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
         result_df: pd.DataFrame = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
         
         for data_name, data in zip(["kormedmcqa_dentist", "kormedmcqa_doctor", "kormedmcqa_nurse", "kormedmcqa_pharm", "medqa_4_options", "medqa_5_options"],
