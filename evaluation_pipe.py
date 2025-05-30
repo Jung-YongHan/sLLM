@@ -165,18 +165,25 @@ if __name__ == "__main__":
                                 [kormedmcqa_dentist, kormedmcqa_doctor, kormedmcqa_nurse, kormedmcqa_pharm, medqa_4_options, medqa_5_options]):
             # If the pipeline with model_id is available, disable this line
             #evaluation_pipeline = EvaluationPipeline(model_dir=f"fine_tuned/{basemodel_id.split('/')[-1]}/{data_name}/")
-            answer_texts = evaluation_pipeline.generate_answers(data["test"])
+            if data_name.startswith("kormedmcqa"):
+                answer_texts = evaluation_pipeline.generate_answers(data["test"])
+            elif data_name.startswith("medqa"):
+                answer_texts = evaluation_pipeline.generate_answers(data["test"], cot=False, is_Korean=False)
             labels = data["test"]["answer"]
             accuracy, f1 = evaluation_pipeline.calculate_metrics(labels, answer_texts)
-            
-            result_df.loc[-1] = [data_name, "acc", accuracy, options["option_finetuning"], options["option_BitsAndBytes"],
+
+            new_row = [data_name, "f1(macro)", f1, options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
-            result_df.index += 1
-            result_df = result_df.sort_index()
-            
-            result_df.loc[-1] = [data_name, "f1(macro)", f1, options["option_finetuning"], options["option_BitsAndBytes"],
+            if new_row not in result_df.values.tolist():
+                result_df.loc[-1] = new_row
+                result_df.index += 1
+                result_df = result_df.sort_index()
+
+            new_row = [data_name, "acc", accuracy, options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
-            result_df.index += 1
-            result_df = result_df.sort_index()
+            if new_row not in result_df.values.tolist():
+                result_df.loc[-1] = new_row
+                result_df.index += 1
+                result_df = result_df.sort_index()
             
             result_df.to_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index=False)

@@ -19,7 +19,9 @@
     "sota_7b_model_id_list":[
         "Qwen/Qwen3-8B",
         "Qwen/Qwen2.5-7B-Instruct",
-        "meta-llama/Llama-3.1-8B-Instruct"
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "LGAI-EXAONE/EXAONE-Deep-7.8B",
+        "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
     ],
     "sota_10b_model_id_list" : [
         "Qwen/Qwen3-14B",
@@ -32,7 +34,6 @@
         "upstage/SOLAR-10.7B-Instruct-v1.0"
     ],
     "sota_30b_quantized_model_id_list" : [
-        "upstage/solar-pro-preview-instruct",
         "google/gemma-3-27b-it-qat-q4_0-gguf",
         "Qwen/QwQ-32B-AWQ",
         "Qwen/Qwen2.5-32B-Instruct-AWQ",
@@ -47,7 +48,6 @@
 
     "medical_model_id_list" : [
         "epfl-llm/meditron-7b",
-        "epfl-llm/meditron-70b",
         "google/medgemma-4b-it",
         "google/medgemma-27b-text-it"
     ]
