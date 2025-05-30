@@ -15,7 +15,7 @@ def generate_kormedmcqa_prompt(x) -> dict[str, str]:
 정답: '''
     return x
     
-def generate_kormedmcqa_completion(x) -> str:
+def generate_kormedmcqa_answer(x) -> str:
     return f"{x["answer"]}: {x["answer_text"]}"
 
 def generate_kormedmcqa_cot_prompt(x) -> dict[str, str]:
@@ -53,7 +53,7 @@ Question: {x["question"]}
 Answer: '''
     return x
 
-def generate_medqa_finetuning_completion(x) -> str:
+def generate_medqa_answer(x) -> str:
     return f"{x["answer_idx"]}: {x["answer"]}"
 
 def organize_train_data():
@@ -63,7 +63,7 @@ def organize_train_data():
                 df = pd.read_csv(f"raw_data/{dataset_folder}/{data}/train.csv", index_col=0)
                 df["answer_text"] = [df.loc[row_idx, answer_idx] for row_idx, answer_idx in enumerate(df["answer"])]
                 df["question"] = df.apply(generate_kormedmcqa_prompt, axis=1)["question"]
-                df["answer"] = df.apply(generate_kormedmcqa_completion, axis=1)
+                df["answer"] = df.apply(generate_kormedmcqa_answer, axis=1)
                 finetuning_df = pd.concat((df["question"], df["answer"]), axis=1)
                 with open(f"data/{dataset_folder}/{data}/train.jsonl", "w", encoding="utf-8") as f:
                     for row in finetuning_df.itertuples(index=False):
@@ -76,7 +76,7 @@ def organize_train_data():
                     df["question"] = df.apply(generate_medqa_4_options_prompt, axis=1)["question"]
                 elif data == "5_options":
                     df["question"] = df.apply(generate_medqa_5_options_prompt, axis=1)["question"]
-                df["answer"] = df.apply(generate_medqa_finetuning_completion, axis=1)
+                df["answer"] = df.apply(generate_medqa_answer, axis=1)
                 finetuning_df = pd.concat((df["question"], df["answer"]), axis=1)
                 with open(f"data/{dataset_folder}/{data}/train.jsonl", "w", encoding="utf-8") as f:
                     for row in finetuning_df.itertuples(index=False):
@@ -87,7 +87,9 @@ def organize_valid_data():
         if dataset_folder == "KorMedMCQA":
             for data in os.listdir(f"raw_data/{dataset_folder}"):
                 df = pd.read_csv(f"raw_data/{dataset_folder}/{data}/valid.csv", index_col=0)
+                df["answer_text"] = [df.loc[row_idx, answer_idx] for row_idx, answer_idx in enumerate(df["answer"])]
                 df["question"] = df.apply(generate_kormedmcqa_prompt, axis=1)["question"]
+                df["answer"] = df.apply(generate_kormedmcqa_answer, axis=1)
                 finetuning_df = pd.concat((df["question"], df["answer"]), axis=1)
                 with open(f"data/{dataset_folder}/{data}/valid.jsonl", "w", encoding="utf-8") as f:
                     for row in finetuning_df.itertuples(index=False):
@@ -100,8 +102,9 @@ def organize_valid_data():
                     df["question"] = df.apply(generate_medqa_4_options_prompt, axis=1)["question"]
                 elif data == "5_options":
                     df["question"] = df.apply(generate_medqa_5_options_prompt, axis=1)["question"]
+                df["answer"] = df.apply(generate_medqa_answer, axis=1)
                 finetuning_df = pd.concat((df["question"], df["answer"]), axis=1)
-                with open(f"data/{dataset_folder}/{data}/dev.jsonl", "w", encoding="utf-8") as f:
+                with open(f"data/{dataset_folder}/{data}/valid.jsonl", "w", encoding="utf-8") as f:
                     for row in finetuning_df.itertuples(index=False):
                         f.write(json.dumps({"question": row.question, "answer": row.answer}, ensure_ascii=False) + "\n")
 
@@ -123,10 +126,10 @@ def organize_test_data():
                     df["question"] = df.apply(generate_medqa_4_options_prompt, axis=1)["question"]
                 elif data == "5_options":
                     df["question"] = df.apply(generate_medqa_5_options_prompt, axis=1)["question"]
-                finetuning_df = pd.concat((df["question"], df["answer"]), axis=1)
+                finetuning_df = pd.concat((df["question"], df["answer_idx"]), axis=1)
                 with open(f"data/{dataset_folder}/{data}/test.jsonl", "w", encoding="utf-8") as f:
                     for row in finetuning_df.itertuples(index=False):
-                        f.write(json.dumps({"question": row.question, "answer": row.answer}, ensure_ascii=False) + "\n")
+                        f.write(json.dumps({"question": row.question, "answer": row.answer_idx}, ensure_ascii=False) + "\n")
 
 def organize_cot_data():
     for dataset_folder in os.listdir("raw_data/KorMedMCQA"):
