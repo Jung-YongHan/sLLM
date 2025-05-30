@@ -58,8 +58,45 @@ class FineTuner:
         if self.model.config.pad_token_id is None:
             self.model.config.pad_token_id = self.tokenizer.pad_token_id
 
-    def train(self, train_dataset, eval_dataset, max_seq_length, **kwargs):
+    def _prepare_dataset(self, dataset, is_korean=True):  
+        def korean_chat_template(question: str) -> list[dict[str, str]]:
+            korean_chat_template = [
+                {
+                    "role": "system",
+                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요."
+                },
+                {
+                    "role": "user",
+                    "content": f"{question}"
+                }
+            ]
+            return korean_chat_template
 
+        def english_chat_template(question: str) -> list[dict[str, str]]:
+            english_chat_template = [
+                {
+                    "role": "system",
+                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation."
+                },
+                {
+                    "role": "user",
+                    "content": f"{question}"
+                }
+            ]
+            return english_chat_template
+        
+        def apply_chat_template(example):
+            if is_korean:
+                example["text"] = korean_chat_template(example["question"])
+            else:
+                example["text"] = english_chat_template(example["question"])
+            return example
+        return dataset.map(apply_chat_template)
+
+    def train(self, train_dataset, eval_dataset, max_seq_length, is_korean=True, **kwargs):
+        train_dataset = self._prepare_dataset(train_dataset, is_korean=is_korean)
+        eval_dataset = self._prepare_dataset(eval_dataset, is_korean=is_korean)
+        
         sft_config = SFTConfig(
             do_train=True,
             do_eval=True,
@@ -71,7 +108,7 @@ class FineTuner:
             torch_compile=True,
             max_seq_length=max_seq_length,
             packing=True,
-            dataset_text_field="question",
+            dataset_text_field="text",
             **kwargs,
         )
 
