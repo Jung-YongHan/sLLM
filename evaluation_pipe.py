@@ -158,12 +158,13 @@ if __name__ == "__main__":
             "option_CoT": False,
             "option_LoRA(r=32 a=64)": False
         }
-        #evaluation_pipeline = EvaluationPipeline(model_dir=f"finetued/{basemodel_id}")
         evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
         result_df: pd.DataFrame = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
         
         for data_name, data in zip(["kormedmcqa_dentist", "kormedmcqa_doctor", "kormedmcqa_nurse", "kormedmcqa_pharm", "medqa_4_options", "medqa_5_options"],
                                 [kormedmcqa_dentist, kormedmcqa_doctor, kormedmcqa_nurse, kormedmcqa_pharm, medqa_4_options, medqa_5_options]):
+            # If the pipeline with model_id is available, disable this line
+            #evaluation_pipeline = EvaluationPipeline(model_dir=f"fine_tuned/{basemodel_id.split('/')[-1]}/{data_name}/")
             answer_texts = evaluation_pipeline.generate_answers(data["test"])
             labels = data["test"]["answer"]
             accuracy, f1 = evaluation_pipeline.calculate_metrics(labels, answer_texts)
