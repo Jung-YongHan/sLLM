@@ -107,7 +107,6 @@ class FineTuner:
             #deep_speed=True,  # Enable DeepSpeed if you want to use it
             torch_compile=True,
             max_seq_length=max_seq_length,
-            packing=True,
             dataset_text_field="text",
             **kwargs,
         )

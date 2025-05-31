@@ -119,7 +119,7 @@ class EvaluationPipeline:
         return round(accuracy, 4), round(f1, 4)
     
     def preprocess_answer(self, answer: str) -> str:
-        answer_cantidates = [line for line in answer.strip().split("\n") if "정답" in line or "Answer" in line]
+        answer_cantidates = [str(line.split("Answer")[-1]) for line in answer.strip().split("\n") if "정답" in line or "Answer" in line]
         for line in answer_cantidates:
             if "A" in line or "1" in line:
                 return "A"
@@ -174,16 +174,22 @@ if __name__ == "__main__":
 
             new_row = [data_name, "f1(macro)", f1, options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
-            if new_row not in result_df.values.tolist():
+            
+            if new_row[:2] + new_row[3:] not in result_df.drop("score", axis=1).values.tolist():
                 result_df.loc[-1] = new_row
                 result_df.index += 1
                 result_df = result_df.sort_index()
-
+            else:
+                existed_idx = result_df.drop("score", axis=1).values.tolist().index(new_row[:2] + new_row[3:])
+                result_df.loc[existed_idx] = new_row
             new_row = [data_name, "acc", accuracy, options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
-            if new_row not in result_df.values.tolist():
+            
+            if new_row[:2] + new_row[3:] not in result_df.drop("score", axis=1).values.tolist():
                 result_df.loc[-1] = new_row
                 result_df.index += 1
                 result_df = result_df.sort_index()
-            
+            else:
+                existed_idx = result_df.drop("score", axis=1).values.tolist().index(new_row[:2] + new_row[3:])
+                result_df.loc[existed_idx] = new_row
             result_df.to_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv", index=False)
