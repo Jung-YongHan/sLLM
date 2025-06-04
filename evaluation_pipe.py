@@ -11,7 +11,7 @@ from transformers.generation.configuration_utils import GenerationConfig
 
 
 class EvaluationPipeline:
-    def __init__(self, model_dir: str|None=None, model_id: str|None=None, quantization: bool=False):
+    def __init__(self, model_dir: str|None=None, model_id: str|None=None, quantization: bool=False, torch_dtype="bfloat16"):
         if quantization:
             self.quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -22,43 +22,44 @@ class EvaluationPipeline:
         else:
             self.quantization_config = None
             
-        self._load_model_and_tokenizer(model_dir, model_id)
+        self._load_model_and_tokenizer(model_dir, model_id, torch_dtype=torch_dtype)
         
-    def _load_model_and_tokenizer(self, model_dir: str|None=None, model_id: str|None=None):
+    def _load_model_and_tokenizer(self, model_dir: str|None=None, model_id: str|None=None, torch_dtype="bfloat16"):
         assert not model_dir or not model_id, "Only one of model_dir or model_id should be provided."
         
-        if model_dir:
+        if self.quantization_config:
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_dir,
+                model_id or model_dir,
                 quantization_config=self.quantization_config,
-                torch_dtype="bfloat16",
+                torch_dtype=torch_dtype,
                 device_map="auto",
                 trust_remote_code=True
             )
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_dir,
-                device_map="auto",
-                trust_remote_code=True
-            )
-            self.generation_configs = GenerationConfig.from_pretrained(model_dir)
-        elif model_id:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_id,
-                quantization_config=self.quantization_config,
-                torch_dtype="bfloat16",
-                device_map="auto",
-                trust_remote_code=True
-            )
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_id,
-                device_map="auto",
-                trust_remote_code=True
-            )
-            self.generation_configs = GenerationConfig.from_pretrained(model_id)
         else:
-            raise ValueError("Either model_dir or model_id must be provided.")
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id or model_dir,
+                torch_dtype=torch_dtype,
+                device_map="auto",
+                trust_remote_code=True
+            )
+            
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_id or model_dir,
+            add_eos_token=True,
+            device_map="auto",
+            trust_remote_code=True
+        )
+         
+        try:
+            self.generation_configs = GenerationConfig.from_pretrained(model_id)
+        except OSError:
+            self.generation_configs = GenerationConfig()
+            
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            
 
-    def generate_answers(self, data: Dataset, cot: list[dict[str, str]] | bool=False, is_Korean=True) -> list[str]:
+    def generate_answers(self, data: Dataset, cot: list[dict[str, str]] | bool=False, is_Korean=True, return_full=False) -> list[str] | tuple[list[str], list[str]]:
         if not is_Korean and cot:
             raise ValueError("CoT is not supported for MedQA.")
         
@@ -66,7 +67,7 @@ class EvaluationPipeline:
             korean_chat_template = [
                 {
                     "role": "system",
-                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요."
+                    "content": "다음 질문을 읽고 '정답: <선택지>' 형식으로 답을 작성해주세요. 선택지는 반드시 A, B, C, D, E 중 하나를 선택하세요."
                 },
                 {
                     "role": "user",
@@ -79,7 +80,7 @@ class EvaluationPipeline:
             english_chat_template = [
                 {
                     "role": "system",
-                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation."
+                    "content": "Read the following question and write the answer in the format 'Answer: <option>'. You must choose the one in A, B, C, D, E as the option."
                 },
                 {
                     "role": "user",
@@ -105,6 +106,7 @@ class EvaluationPipeline:
                 formatted_chat,
                 attention_mask=attention_mask,
                 generation_config=self.generation_configs,
+                pad_token_id=self.tokenizer.pad_token_id,
             )[0]
             input_text_length = len(formatted_chat[0])
             generated_text = self.tokenizer.decode(generated_ids)
@@ -151,16 +153,20 @@ if __name__ == "__main__":
     medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", split=None)
     medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", split=None)
 
-    for basemodel_id in models["sota_3b_model_id_list"]:
+    for basemodel_id in models["sota_1b_model_id_list"]:
+        print(f"Evaluating {basemodel_id}...")
+        
         options = {
             "option_finetuning": False,
             "option_BitsAndBytes": False,
             "option_CoT": False,
             "option_LoRA(r=32 a=64)": False
         }
-        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id)
-        result_df: pd.DataFrame = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
         
+        # float16 is recommended for AWQ
+        evaluation_pipeline = EvaluationPipeline(model_id=basemodel_id, quantization=options["option_BitsAndBytes"], torch_dtype="bfloat16")
+        result_df: pd.DataFrame = pd.read_csv(f"result_csv/{basemodel_id.split('/')[-1]}.csv")
+    
         for data_name, data in zip(["kormedmcqa_dentist", "kormedmcqa_doctor", "kormedmcqa_nurse", "kormedmcqa_pharm", "medqa_4_options", "medqa_5_options"],
                                 [kormedmcqa_dentist, kormedmcqa_doctor, kormedmcqa_nurse, kormedmcqa_pharm, medqa_4_options, medqa_5_options]):
             # If the pipeline with model_id is available, disable this line
@@ -169,12 +175,14 @@ if __name__ == "__main__":
                 answer_texts = evaluation_pipeline.generate_answers(data["test"])
             elif data_name.startswith("medqa"):
                 answer_texts = evaluation_pipeline.generate_answers(data["test"], cot=False, is_Korean=False)
+            
             labels = data["test"]["answer"]
             accuracy, f1 = evaluation_pipeline.calculate_metrics(labels, answer_texts)
 
             new_row = [data_name, "f1(macro)", f1, options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
             
+            # Check if the row already exists in the DataFrame
             if new_row[:2] + new_row[3:] not in result_df.drop("score", axis=1).values.tolist():
                 result_df.loc[-1] = new_row
                 result_df.index += 1
@@ -182,6 +190,7 @@ if __name__ == "__main__":
             else:
                 existed_idx = result_df.drop("score", axis=1).values.tolist().index(new_row[:2] + new_row[3:])
                 result_df.loc[existed_idx] = new_row
+
             new_row = [data_name, "acc", accuracy, options["option_finetuning"], options["option_BitsAndBytes"],
                                     options["option_CoT"], options["option_LoRA(r=32 a=64)"]]
             

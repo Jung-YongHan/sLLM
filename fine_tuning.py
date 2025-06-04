@@ -1,5 +1,6 @@
 import json
 
+from numpy import add
 import torch
 from datasets import load_dataset
 from peft import LoraConfig
@@ -36,18 +37,28 @@ class FineTuner:
         else:
             self.lora_config = None
 
-    def load_model_and_tokenizer(self):
+    def load_model_and_tokenizer(self, torch_dtype="bfloat16"):
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_id,
+            add_eos_token=True,
             trust_remote_code=True,
         )
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_id,
-            quantization_config=self.quantization_config,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            trust_remote_code=True,
-        )
+        
+        if self.quantization_config:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_id,
+                quantization_config=self.quantization_config,
+                torch_dtype=torch_dtype,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_id,
+                torch_dtype=torch_dtype,
+                device_map="auto",
+                trust_remote_code=True,
+            )
 
         if self.lora_config:
             self.model.add_adapter(self.lora_config)
@@ -87,9 +98,19 @@ class FineTuner:
         
         def apply_chat_template(example):
             if is_korean:
-                example["text"] = korean_chat_template(example["question"])
+                messages = korean_chat_template(example["question"])
+                messages.append({
+                    "role": "assistant",
+                    "content": example["answer"]
+                })
             else:
-                example["text"] = english_chat_template(example["question"])
+                messages = english_chat_template(example["question"])
+                messages.append({
+                    "role": "assistant",
+                    "content": example["answer"]
+                })
+                
+            example["text"] = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
             return example
         return dataset.map(apply_chat_template)
 
@@ -98,6 +119,8 @@ class FineTuner:
         eval_dataset = self._prepare_dataset(eval_dataset, is_korean=is_korean)
         
         sft_config = SFTConfig(
+            output_dir=f"./fine_tuned/{self.model_id.split('/')[-1]}",
+            overwrite_output_dir=True,
             do_train=True,
             do_eval=True,
             eval_strategy="steps",
@@ -128,10 +151,10 @@ class FineTuner:
 if __name__ == "__main__":
 
     options = {
-        "option_finetuning": 1,
-        "option_BitsAndBytes": 0,
-        "option_CoT": 0,
-        "option_LoRA(r=32 a=64)": 0
+        "option_finetuning": True,
+        "option_BitsAndBytes": True,
+        "option_CoT": False,
+        "option_LoRA(r=32 a=64)": False
     }
 
     # Load models and their kwargs
@@ -161,7 +184,7 @@ if __name__ == "__main__":
         "medqa_5_options": 512,
     }
     
-    for model_id in models["sota_1b_model_id_list"]:
+    for model_id in models["sota_70b_quantized_model_id_list"]:
         fine_tuner = FineTuner(
             model_id,
             is_quantization=False,
@@ -169,7 +192,7 @@ if __name__ == "__main__":
             lora_r=32,
             lora_alpha=64
         )
-        fine_tuner.load_model_and_tokenizer()
+        fine_tuner.load_model_and_tokenizer("float16")
 
         fine_tuner.train(
             train_dataset=kormedmcqa_doctor["train"],
