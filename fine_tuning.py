@@ -1,29 +1,16 @@
 import json
 
-from numpy import add
-import torch
 from datasets import load_dataset
 from peft import LoraConfig
-from transformers.models.auto.modeling_auto import AutoModelForCausalLM
-from transformers.models.auto.tokenization_auto import AutoTokenizer
-from transformers.utils.quantization_config import BitsAndBytesConfig
 from trl import SFTConfig, SFTTrainer
+
+from common import load_model_and_tokenizer
 
 
 class FineTuner:
     def __init__(self, model_id, is_quantization=False, is_lora=False, **kwargs):
         self.model_id = model_id
         self.tokenizer = None
-
-        if is_quantization:
-            self.quantization_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.bfloat16,
-            )
-        else:
-            self.quantization_config = None
 
         if is_lora:
             self.lora_config = LoraConfig(
@@ -37,49 +24,27 @@ class FineTuner:
         else:
             self.lora_config = None
 
+        self.is_quantization = is_quantization
+
     def load_model_and_tokenizer(self, torch_dtype="bfloat16"):
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_id,
-            add_eos_token=True,
+        self.model, self.tokenizer = load_model_and_tokenizer(
+            model_id=self.model_id,
+            quantization=self.is_quantization,
+            torch_dtype=torch_dtype,
             trust_remote_code=True,
         )
-        
-        if self.quantization_config:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_id,
-                quantization_config=self.quantization_config,
-                torch_dtype=torch_dtype,
-                device_map="auto",
-                trust_remote_code=True,
-            )
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_id,
-                torch_dtype=torch_dtype,
-                device_map="auto",
-                trust_remote_code=True,
-            )
 
         if self.lora_config:
             self.model.add_adapter(self.lora_config)
 
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-
-        if self.model.config.pad_token_id is None:
-            self.model.config.pad_token_id = self.tokenizer.pad_token_id
-
-    def _prepare_dataset(self, dataset, is_korean=True):  
+    def _prepare_dataset(self, dataset, is_korean=True):
         def korean_chat_template(question: str) -> list[dict[str, str]]:
             korean_chat_template = [
                 {
                     "role": "system",
-                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요."
+                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요.",
                 },
-                {
-                    "role": "user",
-                    "content": f"{question}"
-                }
+                {"role": "user", "content": f"{question}"},
             ]
             return korean_chat_template
 
@@ -87,37 +52,33 @@ class FineTuner:
             english_chat_template = [
                 {
                     "role": "system",
-                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation."
+                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation.",
                 },
-                {
-                    "role": "user",
-                    "content": f"{question}"
-                }
+                {"role": "user", "content": f"{question}"},
             ]
             return english_chat_template
-        
+
         def apply_chat_template(example):
             if is_korean:
                 messages = korean_chat_template(example["question"])
-                messages.append({
-                    "role": "assistant",
-                    "content": example["answer"]
-                })
+                messages.append({"role": "assistant", "content": example["answer"]})
             else:
                 messages = english_chat_template(example["question"])
-                messages.append({
-                    "role": "assistant",
-                    "content": example["answer"]
-                })
-                
-            example["text"] = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+                messages.append({"role": "assistant", "content": example["answer"]})
+
+            example["text"] = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=False
+            )
             return example
+
         return dataset.map(apply_chat_template)
 
-    def train(self, train_dataset, eval_dataset, max_seq_length, is_korean=True, **kwargs):
+    def train(
+        self, train_dataset, eval_dataset, max_seq_length, is_korean=True, **kwargs
+    ):
         train_dataset = self._prepare_dataset(train_dataset, is_korean=is_korean)
         eval_dataset = self._prepare_dataset(eval_dataset, is_korean=is_korean)
-        
+
         sft_config = SFTConfig(
             output_dir=f"./fine_tuned/{self.model_id.split('/')[-1]}",
             overwrite_output_dir=True,
@@ -127,7 +88,7 @@ class FineTuner:
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
             greater_is_better=False,
-            #deep_speed=True,  # Enable DeepSpeed if you want to use it
+            # deep_speed=True,  # Enable DeepSpeed if you want to use it
             torch_compile=True,
             max_seq_length=max_seq_length,
             dataset_text_field="text",
@@ -154,7 +115,7 @@ if __name__ == "__main__":
         "option_finetuning": True,
         "option_BitsAndBytes": True,
         "option_CoT": False,
-        "option_LoRA(r=32 a=64)": False
+        "option_LoRA(r=32 a=64)": False,
     }
 
     # Load models and their kwargs
@@ -162,18 +123,34 @@ if __name__ == "__main__":
         models = json.load(f)
     with open("models_finetuning_kwargs.json", "r") as f:
         models_kwargs = json.load(f)
-    
-    split_files = {"train": "train.jsonl", "validation": "valid.jsonl", "test": "test.jsonl"}
+
+    split_files = {
+        "train": "train.jsonl",
+        "validation": "valid.jsonl",
+        "test": "test.jsonl",
+    }
     # Load Korean datasets
-    kormedmcqa_dentist = load_dataset("json", data_dir="data/KorMedMCQA/dentist/", data_files=split_files)
-    kormedmcqa_doctor = load_dataset("json", data_dir="data/KorMedMCQA/doctor/", data_files=split_files)
-    kormedmcqa_nurse = load_dataset("json", data_dir="data/KorMedMCQA/nurse/", data_files=split_files)
-    kormedmcqa_pharm = load_dataset("json", data_dir="data/KorMedMCQA/pharm/", data_files=split_files)
-    
+    kormedmcqa_dentist = load_dataset(
+        "json", data_dir="data/KorMedMCQA/dentist/", data_files=split_files
+    )
+    kormedmcqa_doctor = load_dataset(
+        "json", data_dir="data/KorMedMCQA/doctor/", data_files=split_files
+    )
+    kormedmcqa_nurse = load_dataset(
+        "json", data_dir="data/KorMedMCQA/nurse/", data_files=split_files
+    )
+    kormedmcqa_pharm = load_dataset(
+        "json", data_dir="data/KorMedMCQA/pharm/", data_files=split_files
+    )
+
     # Load English datasets
-    medqa_5_options = load_dataset("json", data_dir="data/MedQA/5_options/", data_files=split_files)
-    medqa_4_options = load_dataset("json", data_dir="data/MedQA/4_options/", data_files=split_files)
-    
+    medqa_5_options = load_dataset(
+        "json", data_dir="data/MedQA/5_options/", data_files=split_files
+    )
+    medqa_4_options = load_dataset(
+        "json", data_dir="data/MedQA/4_options/", data_files=split_files
+    )
+
     # max_seq_length_by_dataset
     max_seq_length_by_dataset = {
         "kormedmcqa_dentist": 256,
@@ -183,14 +160,10 @@ if __name__ == "__main__":
         "medqa_4_options": 512,
         "medqa_5_options": 512,
     }
-    
+
     for model_id in models["sota_70b_quantized_model_id_list"]:
         fine_tuner = FineTuner(
-            model_id,
-            is_quantization=False,
-            is_lora=False,
-            lora_r=32,
-            lora_alpha=64
+            model_id, is_quantization=False, is_lora=False, lora_r=32, lora_alpha=64
         )
         fine_tuner.load_model_and_tokenizer("float16")
 
