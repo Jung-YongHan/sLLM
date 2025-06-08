@@ -4,8 +4,7 @@ import pandas as pd
 import os
         
 def generate_kormedmcqa_prompt(x) -> dict[str, str]:
-    x["question"] = f'''**다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.**
-질문: {x["question"]}
+    x["question"] = f'''질문: {x["question"]}
 - A: {x["A"]}
 - B: {x["B"]}
 - C: {x["C"]}
@@ -19,8 +18,7 @@ def generate_kormedmcqa_answer(x) -> str:
     return f"{x["answer"]}: {x["answer_text"]}"
 
 def generate_kormedmcqa_cot_prompt(x) -> dict[str, str]:
-    x["cot"] = f'''**다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.**
-질문: {x["question"]}
+    x["cot"] = f'''질문: {x["question"]}
 - A: {x["A"]}
 - B: {x["B"]}
 - C: {x["C"]}
@@ -31,8 +29,7 @@ def generate_kormedmcqa_cot_prompt(x) -> dict[str, str]:
     return x
     
 def generate_medqa_5_options_prompt(x) -> dict[str, str]:
-    x["question"] = f'''**Read the following question and select only the most appropriate answer from the given options.**
-Question: {x["question"]}
+    x["question"] = f'''Question: {x["question"]}
 - A: {x["options"]["A"]}
 - B: {x["options"]["B"]}
 - C: {x["options"]["C"]}
@@ -43,8 +40,7 @@ Answer: '''
     return x
     
 def generate_medqa_4_options_prompt(x) -> dict[str, str]:
-    x["question"] = f'''**Read the following question and select the most appropriate answer from the given options.**
-Question: {x["question"]}
+    x["question"] = f'''Question: {x["question"]}
 - A: {x["options"]["A"]}
 - B: {x["options"]["B"]}
 - C: {x["options"]["C"]}

@@ -4,9 +4,6 @@ import pandas as pd
 from datasets import Dataset, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
-from transformers.models.auto.modeling_auto import AutoModelForCausalLM
-from transformers.models.auto.tokenization_auto import AutoTokenizer
-from transformers.utils.quantization_config import BitsAndBytesConfig
 from transformers.generation.configuration_utils import GenerationConfig
 
 from common import load_model_and_tokenizer
@@ -19,6 +16,7 @@ class EvaluationPipeline:
         model_id: str | None = None,
         quantization: bool = False,
         torch_dtype="bfloat16",
+        attn_implementation="flash_attention_2",
     ):
         assert (
             not model_dir or not model_id
@@ -35,7 +33,7 @@ class EvaluationPipeline:
             model_id=self.model_source,
             quantization=self.is_quantization,
             torch_dtype=self.torch_dtype,
-            trust_remote_code=True,
+            attn_implementation="flash_attention_2",
         )
 
         try:
@@ -50,7 +48,6 @@ class EvaluationPipeline:
         data: Dataset,
         cot: list[dict[str, str]] | bool = False,
         is_Korean=True,
-        return_full=False,
     ) -> list[str] | tuple[list[str], list[str]]:
         if not is_Korean and cot:
             raise ValueError("CoT is not supported for MedQA.")

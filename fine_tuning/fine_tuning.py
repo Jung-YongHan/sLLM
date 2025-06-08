@@ -31,7 +31,7 @@ class FineTuner:
             model_id=self.model_id,
             quantization=self.is_quantization,
             torch_dtype=torch_dtype,
-            trust_remote_code=True,
+            attn_implementation="flash_attention_2",
         )
 
         if self.lora_config:
@@ -92,6 +92,7 @@ class FineTuner:
             torch_compile=True,
             max_seq_length=max_seq_length,
             dataset_text_field="text",
+            bf16=True,
             **kwargs,
         )
 
@@ -163,7 +164,7 @@ if __name__ == "__main__":
 
     for model_id in models["sota_70b_quantized_model_id_list"]:
         fine_tuner = FineTuner(
-            model_id, is_quantization=False, is_lora=False, lora_r=32, lora_alpha=64
+            model_id, is_quantization=options["option_BitsAndBytes"], is_lora=options["option_LoRA(r=32 a=64)"], lora_r=32, lora_alpha=64
         )
         fine_tuner.load_model_and_tokenizer("float16")
 

@@ -1,4 +1,5 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.models.auto.modeling_auto import AutoModelForCausalLM
+from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.utils.quantization_config import BitsAndBytesConfig
 
 
@@ -15,30 +16,34 @@ def load_model_and_tokenizer(
     model_id: str,
     quantization: bool = False,
     torch_dtype="bfloat16",
-    trust_remote_code: bool = True,
+    attn_implementation="flash_attention_2",
 ) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
     if quantization:
         quant_config = get_quantization_config(torch_dtype)
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             quantization_config=quant_config,
+            attn_implementation=attn_implementation,
             torch_dtype=torch_dtype,
             device_map="auto",
-            trust_remote_code=trust_remote_code,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
+            attn_implementation=attn_implementation,
             torch_dtype=torch_dtype,
             device_map="auto",
-            trust_remote_code=trust_remote_code,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
         )
 
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
         # device_map="auto",  # device_map은 tokenizer에는 필요하지 않다고 함
         add_eos_token=True,
-        trust_remote_code=trust_remote_code,
+        trust_remote_code=True,
     )
 
     if tokenizer.pad_token is None:

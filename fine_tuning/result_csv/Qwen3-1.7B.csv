@@ -1,4 +1,16 @@
 data,metric,score,option_finetuning,option_BitsAndBytes,option_CoT,option_LoRA(r=32 a=64)
+medqa_5_options,acc,0.2797,True,True,False,True
+medqa_5_options,f1(macro),0.2359,True,True,False,True
+medqa_4_options,acc,0.3504,True,True,False,True
+medqa_4_options,f1(macro),0.2332,True,True,False,True
+kormedmcqa_pharm,acc,0.3085,True,True,False,True
+kormedmcqa_pharm,f1(macro),0.2478,True,True,False,True
+kormedmcqa_nurse,acc,0.369,True,True,False,True
+kormedmcqa_nurse,f1(macro),0.3084,True,True,False,True
+kormedmcqa_doctor,acc,0.2598,True,True,False,True
+kormedmcqa_doctor,f1(macro),0.1737,True,True,False,True
+kormedmcqa_dentist,acc,0.2602,True,True,False,True
+kormedmcqa_dentist,f1(macro),0.2126,True,True,False,True
 medqa_5_options,acc,0.3346,False,False,False,False
 medqa_5_options,f1(macro),0.2763,False,False,False,False
 medqa_4_options,acc,0.3833,False,False,False,False
