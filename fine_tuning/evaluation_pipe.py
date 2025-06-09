@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 from transformers.generation.configuration_utils import GenerationConfig
 
-from common import load_model_and_tokenizer
+from fine_tuning.common import load_model_and_tokenizer
 
 
 class EvaluationPipeline:
@@ -43,67 +43,34 @@ class EvaluationPipeline:
         except OSError:
             self.generation_configs = GenerationConfig()
 
-    def generate_answers(
-        self,
-        data: Dataset,
-        cot: list[dict[str, str]] | bool = False,
-        is_Korean=True,
-    ) -> list[str] | tuple[list[str], list[str]]:
-        if not is_Korean and cot:
-            raise ValueError("CoT is not supported for MedQA.")
-
-        def _korean_chat_template(question: str) -> list[dict[str, str]]:
-            korean_chat_template = [
-                {
-                    "role": "system",
-                    "content": "다음 질문을 읽고 '정답: <선택지>' 형식으로 답을 작성해주세요. 선택지는 반드시 A, B, C, D, E 중 하나를 선택하세요.",
-                },
-                {"role": "user", "content": f"{question}"},
-            ]
-            return korean_chat_template
-
-        def _english_chat_template(question: str) -> list[dict[str, str]]:
-            english_chat_template = [
-                {
-                    "role": "system",
-                    "content": "Read the following question and write the answer in the format 'Answer: <option>'. You must choose the one in A, B, C, D, E as the option.",
-                },
-                {"role": "user", "content": f"{question}"},
-            ]
-            return english_chat_template
+    def generate_answers(self, data: Dataset, cot=False) -> list[str]:
+        if cot:
+            raise NotImplementedError("CoT is not yet implemented.")
 
         answers: list[str] = []
-        for question in tqdm(
-            data["question"], total=len(data["question"]), desc="Generating answers"
-        ):
-            if cot:
-                # TODO: Implement CoT for Korean datasets
-                pass
-            else:
-                if is_Korean:
-                    chat_template = _korean_chat_template(question)
-                else:
-                    chat_template = _english_chat_template(question)
+        for example in tqdm(data, desc="Generating answers"):
             formatted_chat = self.tokenizer.apply_chat_template(
-                chat_template,
+                example["messages"],
                 continue_final_message=True,
                 thinking=False,
                 return_tensors="pt",
             ).to(self.model.device)
+
             attention_mask = (
                 (formatted_chat != self.tokenizer.eos_token_id)
                 .long()
                 .to(self.model.device)
             )
+
             generated_ids = self.model.generate(
                 formatted_chat,
                 attention_mask=attention_mask,
                 generation_config=self.generation_configs,
                 pad_token_id=self.tokenizer.pad_token_id,
             )[0]
+
             input_text_length = len(formatted_chat[0])
-            generated_text = self.tokenizer.decode(generated_ids)
-            generated_text = generated_text[input_text_length:]
+            generated_text = self.tokenizer.decode(generated_ids[input_text_length:])
             answers.append(self.preprocess_answer(generated_text))
 
         return answers
@@ -201,13 +168,7 @@ if __name__ == "__main__":
         ):
             # If the pipeline with model_id is available, disable this line
             # evaluation_pipeline = EvaluationPipeline(model_dir=f"fine_tuned/{basemodel_id.split('/')[-1]}/{data_name}/")
-            if data_name.startswith("kormedmcqa"):
-                answer_texts = evaluation_pipeline.generate_answers(data["test"])
-            elif data_name.startswith("medqa"):
-                answer_texts = evaluation_pipeline.generate_answers(
-                    data["test"], cot=False, is_Korean=False
-                )
-
+            answer_texts = evaluation_pipeline.generate_answers(data["test"])
             labels = data["test"]["answer"]
             accuracy, f1 = evaluation_pipeline.calculate_metrics(labels, answer_texts)
 

@@ -4,7 +4,7 @@ from datasets import load_dataset
 from peft import LoraConfig
 from trl import SFTConfig, SFTTrainer
 
-from common import load_model_and_tokenizer
+from fine_tuning.common import load_model_and_tokenizer
 
 
 class FineTuner:
@@ -17,8 +17,6 @@ class FineTuner:
                 r=kwargs.get("lora_r", 16),
                 lora_alpha=kwargs.get("lora_alpha", 32),
                 target_modules=["q_proj", "v_proj"],
-                # if the r is small enough to apply to all modules, you can use the following line instead:
-                # target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
                 task_type="CAUSAL_LM",
             )
         else:
@@ -37,47 +35,18 @@ class FineTuner:
         if self.lora_config:
             self.model.add_adapter(self.lora_config)
 
-    def _prepare_dataset(self, dataset, is_korean=True):
-        def korean_chat_template(question: str) -> list[dict[str, str]]:
-            korean_chat_template = [
-                {
-                    "role": "system",
-                    "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요.",
-                },
-                {"role": "user", "content": f"{question}"},
-            ]
-            return korean_chat_template
-
-        def english_chat_template(question: str) -> list[dict[str, str]]:
-            english_chat_template = [
-                {
-                    "role": "system",
-                    "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation.",
-                },
-                {"role": "user", "content": f"{question}"},
-            ]
-            return english_chat_template
-
+    def _prepare_dataset(self, dataset):
         def apply_chat_template(example):
-            if is_korean:
-                messages = korean_chat_template(example["question"])
-                messages.append({"role": "assistant", "content": example["answer"]})
-            else:
-                messages = english_chat_template(example["question"])
-                messages.append({"role": "assistant", "content": example["answer"]})
-
             example["text"] = self.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=False
+                example["messages"], tokenize=False, add_generation_prompt=False
             )
             return example
 
         return dataset.map(apply_chat_template)
 
-    def train(
-        self, train_dataset, eval_dataset, max_seq_length, is_korean=True, **kwargs
-    ):
-        train_dataset = self._prepare_dataset(train_dataset, is_korean=is_korean)
-        eval_dataset = self._prepare_dataset(eval_dataset, is_korean=is_korean)
+    def train(self, train_dataset, eval_dataset, max_seq_length, **kwargs):
+        train_dataset = self._prepare_dataset(train_dataset)
+        eval_dataset = self._prepare_dataset(eval_dataset)
 
         sft_config = SFTConfig(
             output_dir=f"./fine_tuned/{self.model_id.split('/')[-1]}",
@@ -88,7 +57,6 @@ class FineTuner:
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
             greater_is_better=False,
-            # deep_speed=True,  # Enable DeepSpeed if you want to use it
             torch_compile=True,
             max_seq_length=max_seq_length,
             dataset_text_field="text",
@@ -96,8 +64,6 @@ class FineTuner:
             **kwargs,
         )
 
-        # TODO: It is strongly recommended to train Gemma3 models with the `eager` attention implementation instead of `sdpa`.
-        # Use `eager` with `AutoModelForCausalLM.from_pretrained('<path-to-checkpoint>', attn_implementation='eager')`.
         trainer = SFTTrainer(
             model=self.model,
             processing_class=self.tokenizer,
