@@ -1,23 +1,29 @@
 import json
 
-from datasets import load_dataset
+from accelerate import Accelerator
 from peft import LoraConfig
 from trl import SFTConfig, SFTTrainer
 
-from fine_tuning.common import load_model_and_tokenizer
+from common import ModelHandler
+from dataloader import DatasetLoader
+from configs import LoRAConfig, DatasetConfig
 
 
 class FineTuner:
     def __init__(self, model_id, is_quantization=False, is_lora=False, **kwargs):
         self.model_id = model_id
-        self.tokenizer = None
+        self.model_handler = None
 
         if is_lora:
+            lora_config = LoRAConfig(
+                r=kwargs.get("lora_r", 32),
+                lora_alpha=kwargs.get("lora_alpha", 64),
+            )
             self.lora_config = LoraConfig(
-                r=kwargs.get("lora_r", 16),
-                lora_alpha=kwargs.get("lora_alpha", 32),
-                target_modules=["q_proj", "v_proj"],
-                task_type="CAUSAL_LM",
+                r=lora_config.r,
+                lora_alpha=lora_config.lora_alpha,
+                target_modules=lora_config.target_modules,
+                task_type=lora_config.task_type,
             )
         else:
             self.lora_config = None
@@ -25,21 +31,25 @@ class FineTuner:
         self.is_quantization = is_quantization
 
     def load_model_and_tokenizer(self, torch_dtype="bfloat16"):
-        self.model, self.tokenizer = load_model_and_tokenizer(
-            model_id=self.model_id,
+        self.model_handler = ModelHandler(
+            model_source=self.model_id,
             quantization=self.is_quantization,
             torch_dtype=torch_dtype,
             attn_implementation="flash_attention_2",
         )
 
         if self.lora_config:
-            self.model.add_adapter(self.lora_config)
+            self.model_handler.model.add_adapter(self.lora_config)
 
     def _prepare_dataset(self, dataset):
         def apply_chat_template(example):
-            example["text"] = self.tokenizer.apply_chat_template(
-                example["messages"], tokenize=False, add_generation_prompt=False
-            )
+            # text 컬럼이 이미 chat template이 적용된 messages인지 확인
+            if isinstance(example["text"], list):
+                # 이미 messages 형태인 경우
+                example["text"] = self.model_handler.tokenizer.apply_chat_template(
+                    example["text"], tokenize=False, add_generation_prompt=False
+                )
+            # 이미 문자열인 경우는 그대로 사용
             return example
 
         return dataset.map(apply_chat_template)
@@ -65,8 +75,8 @@ class FineTuner:
         )
 
         trainer = SFTTrainer(
-            model=self.model,
-            processing_class=self.tokenizer,
+            model=self.model_handler.model,
+            processing_class=self.model_handler.tokenizer,
             args=sft_config,
             peft_config=self.lora_config,
             train_dataset=train_dataset,
@@ -77,6 +87,8 @@ class FineTuner:
 
 
 if __name__ == "__main__":
+    
+    accelerator = Accelerator()
 
     options = {
         "option_finetuning": True,
@@ -86,47 +98,16 @@ if __name__ == "__main__":
     }
 
     # Load models and their kwargs
-    with open("models.json", "r") as f:
+    with open("fine_tuning/models.json", "r") as f:
         models = json.load(f)
-    with open("models_finetuning_kwargs.json", "r") as f:
+    with open("fine_tuning/models_finetuning_kwargs.json", "r") as f:
         models_kwargs = json.load(f)
 
-    split_files = {
-        "train": "train.jsonl",
-        "validation": "valid.jsonl",
-        "test": "test.jsonl",
-    }
-    # Load Korean datasets
-    kormedmcqa_dentist = load_dataset(
-        "json", data_dir="data/KorMedMCQA/dentist/", data_files=split_files
-    )
-    kormedmcqa_doctor = load_dataset(
-        "json", data_dir="data/KorMedMCQA/doctor/", data_files=split_files
-    )
-    kormedmcqa_nurse = load_dataset(
-        "json", data_dir="data/KorMedMCQA/nurse/", data_files=split_files
-    )
-    kormedmcqa_pharm = load_dataset(
-        "json", data_dir="data/KorMedMCQA/pharm/", data_files=split_files
-    )
-
-    # Load English datasets
-    medqa_5_options = load_dataset(
-        "json", data_dir="data/MedQA/5_options/", data_files=split_files
-    )
-    medqa_4_options = load_dataset(
-        "json", data_dir="data/MedQA/4_options/", data_files=split_files
-    )
-
-    # max_seq_length_by_dataset
-    max_seq_length_by_dataset = {
-        "kormedmcqa_dentist": 256,
-        "kormedmcqa_doctor": 512,
-        "kormedmcqa_nurse": 256,
-        "kormedmcqa_pharm": 256,
-        "medqa_4_options": 512,
-        "medqa_5_options": 512,
-    }
+    # Load datasets using DatasetLoader
+    dataset_config = DatasetConfig()
+    dataset_loader = DatasetLoader(dataset_config)
+    korean_datasets = dataset_loader.load_korean_datasets()
+    english_datasets = dataset_loader.load_english_datasets()
 
     for model_id in models["sota_70b_quantized_model_id_list"]:
         fine_tuner = FineTuner(
@@ -135,14 +116,14 @@ if __name__ == "__main__":
         fine_tuner.load_model_and_tokenizer("float16")
 
         fine_tuner.train(
-            train_dataset=kormedmcqa_doctor["train"],
-            eval_dataset=kormedmcqa_doctor["validation"],
-            max_seq_length=max_seq_length_by_dataset["kormedmcqa_doctor"],
+            train_dataset=korean_datasets["kormedmcqa_doctor"]["train"],
+            eval_dataset=korean_datasets["kormedmcqa_doctor"]["validation"],
+            max_seq_length=dataset_config.max_seq_lengths["kormedmcqa_doctor"],
             **models_kwargs["sota_1b_model_kwargs"][model_id],
         )
-        fine_tuner.model.save_pretrained(
+        fine_tuner.model_handler.model.save_pretrained(
             f"./fine_tuned/{model_id.split('/')[-1]}/kormedmcqa_doctor"
         )
-        fine_tuner.tokenizer.save_pretrained(
+        fine_tuner.model_handler.tokenizer.save_pretrained(
             f"./fine_tuned/{model_id.split('/')[-1]}/kormedmcqa_doctor"
         )

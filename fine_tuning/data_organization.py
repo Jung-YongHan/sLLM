@@ -28,12 +28,11 @@ def generate_kormedmcqa_prompt(x) -> dict[str, str]:
 - C: {x["C"]}
 - D: {x["D"]}
 - E: {x["E"]}
-
-정답: '''
+'''
     return x
     
 def generate_kormedmcqa_answer(x) -> str:
-    return f"{x["answer"]}: {x["answer_text"]}"
+    return f"정답: {x['answer']}: {x['answer_text']}"
 
 def generate_kormedmcqa_cot_prompt(x) -> dict[str, str]:
     x["cot"] = f'''질문: {x["question"]}
@@ -53,8 +52,7 @@ def generate_medqa_5_options_prompt(x) -> dict[str, str]:
 - C: {x["options"]["C"]}
 - D: {x["options"]["D"]}
 - E: {x["options"]["E"]}
-
-Answer: '''
+'''
     return x
     
 def generate_medqa_4_options_prompt(x) -> dict[str, str]:
@@ -63,26 +61,25 @@ def generate_medqa_4_options_prompt(x) -> dict[str, str]:
 - B: {x["options"]["B"]}
 - C: {x["options"]["C"]}
 - D: {x["options"]["D"]}
-
-Answer: '''
+'''
     return x
 
 def generate_medqa_answer(x) -> str:
-    return f"{x["answer_idx"]}: {x["answer"]}"
+    return f"Answer: {x['answer_idx']}: {x['answer']}"
 
-def korean_chat_template_train(question: str, answer: str) -> str:
+def korean_chat_template_train(question: str, answer: str) -> list[dict[str, str]]:
     """한국어 훈련용 chat template"""
     messages = [
         {
             "role": "system",
-            "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 먼저 작성한 후 설명을 작성하세요.",
+            "content": "다음 질문을 읽고, 주어진 선택지 중에서 가장 적절한 답을 하나만 선택하세요.\n반드시 '정답: <선택지>' 형식으로 답을 작성하세요.",
         },
         {"role": "user", "content": question},
         {"role": "assistant", "content": answer}
     ]
     return messages
 
-def korean_chat_template_eval(question: str) -> str:
+def korean_chat_template_eval(question: str) -> list[dict[str, str]]:
     """한국어 평가용 chat template"""
     messages = [
         {
@@ -93,19 +90,19 @@ def korean_chat_template_eval(question: str) -> str:
     ]
     return messages
 
-def english_chat_template_train(question: str, answer: str) -> str:
+def english_chat_template_train(question: str, answer: str) -> list[dict[str, str]]:
     """영어 훈련용 chat template"""
     messages = [
         {
             "role": "system",
-            "content": "Read the following question and select the most appropriate answer from the given options.\nYou must first write the answer in the format 'Answer: <option>' and then provide an explanation.",
+            "content": "Read the following question and select the most appropriate answer from the given options.\nYou must write the answer in the format 'Answer: <option>'.",
         },
         {"role": "user", "content": question},
         {"role": "assistant", "content": answer}
     ]
     return messages
 
-def english_chat_template_eval(question: str) -> str:
+def english_chat_template_eval(question: str) -> list[dict[str, str]]:
     """영어 평가용 chat template"""
     messages = [
         {
@@ -121,23 +118,25 @@ def write_jsonl_with_templates(data: pd.DataFrame, filepath: str, columns: list,
     ensure_dir_exists(os.path.dirname(filepath)) 
     with open(filepath, "w", encoding="utf-8") as f:
         for row in data[columns].itertuples(index=False):
-            if is_train and len(columns) == 2:  # train/valid with question and answer
-                question, answer = getattr(row, columns[0]), getattr(row, columns[1])
+            question = getattr(row, columns[0])
+            
+            if is_train:
+                # Train: 질문과 답변이 모두 포함된 chat template
+                answer = getattr(row, columns[1]) if len(columns) > 1 else ""
                 if is_korean:
                     messages = korean_chat_template_train(question, answer)
                 else:
                     messages = english_chat_template_train(question, answer)
-                row_dict = {"text": messages}
-            else:  # test with question only or other formats
-                if len(columns) == 2:
-                    question, answer = getattr(row, columns[0]), getattr(row, columns[1])
-                    if is_korean:
-                        messages = korean_chat_template_eval(question)
-                    else:
-                        messages = english_chat_template_eval(question)
-                    row_dict = {"text": messages, "answer": answer}
+                row_dict = {"text": messages, "label": answer}
+            else:
+                # Valid/Test: 질문만 포함된 chat template
+                if is_korean:
+                    messages = korean_chat_template_eval(question)
                 else:
-                    row_dict = {columns[i]: getattr(row, columns[i]) for i in range(len(columns))}
+                    messages = english_chat_template_eval(question)
+                # 실제 정답을 label로 저장
+                answer = getattr(row, columns[1]) if len(columns) > 1 else ""
+                row_dict = {"text": messages, "label": answer}
             
             f.write(json.dumps(row_dict, ensure_ascii=False) + "\n")
 
@@ -148,14 +147,18 @@ def process_kormedmcqa_data(dataset_folder: str, data: str, file_type: str, incl
     
     df = pd.read_csv(input_file, index_col=0)
     
+    # 모든 경우에 answer_text와 answer 생성
+    df["answer_text"] = [df.loc[row_idx, df.iloc[row_idx]["answer"]] for row_idx in range(len(df))]
+    df["answer"] = df.apply(generate_kormedmcqa_answer, axis=1)
+    
     if include_answer:
-        df["answer_text"] = [df.loc[row_idx, answer_idx] for row_idx, answer_idx in enumerate(df["answer"])]
-        df["answer"] = df.apply(generate_kormedmcqa_answer, axis=1)
+        columns = ["question", "answer"]
+    else:
+        columns = ["question", "answer"]  # valid/test에서도 label을 위해 answer 포함
     
     df["question"] = df.apply(generate_kormedmcqa_prompt, axis=1)["question"]
     
-    columns = ["question", "answer"] if include_answer else ["question", "answer"]
-    is_train = file_type in ["train", "valid"]
+    is_train = file_type == "train"
     write_jsonl_with_templates(df, output_file, columns, is_korean=True, is_train=is_train)
 
 def process_medqa_data(dataset_folder: str, data: str, input_file: str, output_file: str, use_full_answer: bool = True):
@@ -168,14 +171,16 @@ def process_medqa_data(dataset_folder: str, data: str, input_file: str, output_f
     elif data == "5_options":
         df["question"] = df.apply(generate_medqa_5_options_prompt, axis=1)["question"]
     
+    # 모든 경우에 answer 생성
+    df["answer"] = df.apply(generate_medqa_answer, axis=1)
+    
     if use_full_answer:
-        df["answer"] = df.apply(generate_medqa_answer, axis=1)
         columns = ["question", "answer"]
     else:
-        columns = ["question", "answer_idx"]
+        columns = ["question", "answer"]  # valid/test에서도 label을 위해 answer 포함
     
     output_path = f"{OUTPUT_DATA_DIR}/{dataset_folder}/{data}/{output_file}"
-    is_train = "train" in output_file or "valid" in output_file
+    is_train = "train" in output_file
     write_jsonl_with_templates(df, output_path, columns, is_korean=False, is_train=is_train)
 
 def process_datasets(kormedmcqa_config: dict, medqa_config: dict):
@@ -194,13 +199,13 @@ def organize_train_data():
     process_datasets(kormedmcqa_config, medqa_config)
 
 def organize_valid_data():
-    kormedmcqa_config = {"file_type": "valid", "include_answer": False}
-    medqa_config = {"input_file": "dev.jsonl", "output_file": "valid.jsonl"}
+    kormedmcqa_config = {"file_type": "valid", "include_answer": True}  # include_answer를 True로 변경
+    medqa_config = {"input_file": "dev.jsonl", "output_file": "valid.jsonl", "use_full_answer": True}  # use_full_answer를 True로 변경
     process_datasets(kormedmcqa_config, medqa_config)
 
 def organize_test_data():
-    kormedmcqa_config = {"file_type": "test", "include_answer": False}
-    medqa_config = {"input_file": "test.jsonl", "output_file": "test.jsonl", "use_full_answer": False}
+    kormedmcqa_config = {"file_type": "test", "include_answer": True}  # include_answer를 True로 변경
+    medqa_config = {"input_file": "test.jsonl", "output_file": "test.jsonl", "use_full_answer": True}  # use_full_answer를 True로 변경
     process_datasets(kormedmcqa_config, medqa_config)
 
 def organize_cot_data():
