@@ -118,7 +118,7 @@ def english_chat_template_eval(question: str) -> str:
 
 def write_jsonl_with_templates(data: pd.DataFrame, filepath: str, columns: list, is_korean: bool = True, is_train: bool = True):
     """DataFrame을 chat template이 적용된 JSONL 형식으로 저장"""
-    ensure_dir_exists(os.path.dirname(filepath))
+    ensure_dir_exists(os.path.dirname(filepath)) 
     with open(filepath, "w", encoding="utf-8") as f:
         for row in data[columns].itertuples(index=False):
             if is_train and len(columns) == 2:  # train/valid with question and answer
@@ -127,7 +127,7 @@ def write_jsonl_with_templates(data: pd.DataFrame, filepath: str, columns: list,
                     messages = korean_chat_template_train(question, answer)
                 else:
                     messages = english_chat_template_train(question, answer)
-                row_dict = {"messages": messages}
+                row_dict = {"text": messages}
             else:  # test with question only or other formats
                 if len(columns) == 2:
                     question, answer = getattr(row, columns[0]), getattr(row, columns[1])
@@ -135,7 +135,7 @@ def write_jsonl_with_templates(data: pd.DataFrame, filepath: str, columns: list,
                         messages = korean_chat_template_eval(question)
                     else:
                         messages = english_chat_template_eval(question)
-                    row_dict = {"messages": messages, "answer": answer}
+                    row_dict = {"text": messages, "answer": answer}
                 else:
                     row_dict = {columns[i]: getattr(row, columns[i]) for i in range(len(columns))}
             
@@ -178,32 +178,30 @@ def process_medqa_data(dataset_folder: str, data: str, input_file: str, output_f
     is_train = "train" in output_file or "valid" in output_file
     write_jsonl_with_templates(df, output_path, columns, is_korean=False, is_train=is_train)
 
-def organize_train_data():
+def process_datasets(kormedmcqa_config: dict, medqa_config: dict):
+    """데이터셋을 처리하는 공통 함수"""
     for dataset_folder in os.listdir(RAW_DATA_DIR):
         if dataset_folder == KORMEDMCQA:
             for data in os.listdir(f"{RAW_DATA_DIR}/{dataset_folder}"):
-                process_kormedmcqa_data(dataset_folder, data, "train")
+                process_kormedmcqa_data(dataset_folder, data, **kormedmcqa_config)
         elif dataset_folder == MEDQA:
             for data in os.listdir(f"{RAW_DATA_DIR}/{dataset_folder}"):
-                process_medqa_data(dataset_folder, data, "train.jsonl", "train.jsonl")
+                process_medqa_data(dataset_folder, data, **medqa_config)
+
+def organize_train_data():
+    kormedmcqa_config = {"file_type": "train"}
+    medqa_config = {"input_file": "train.jsonl", "output_file": "train.jsonl"}
+    process_datasets(kormedmcqa_config, medqa_config)
 
 def organize_valid_data():
-    for dataset_folder in os.listdir(RAW_DATA_DIR):
-        if dataset_folder == KORMEDMCQA:
-            for data in os.listdir(f"{RAW_DATA_DIR}/{dataset_folder}"):
-                process_kormedmcqa_data(dataset_folder, data, "valid", include_answer=False)
-        elif dataset_folder == MEDQA:
-            for data in os.listdir(f"{RAW_DATA_DIR}/{dataset_folder}"):
-                process_medqa_data(dataset_folder, data, "dev.jsonl", "valid.jsonl")
+    kormedmcqa_config = {"file_type": "valid", "include_answer": False}
+    medqa_config = {"input_file": "dev.jsonl", "output_file": "valid.jsonl"}
+    process_datasets(kormedmcqa_config, medqa_config)
 
 def organize_test_data():
-    for dataset_folder in os.listdir(RAW_DATA_DIR):
-        if dataset_folder == KORMEDMCQA:
-            for data in os.listdir(f"{RAW_DATA_DIR}/{dataset_folder}"):
-                process_kormedmcqa_data(dataset_folder, data, "test", include_answer=False)
-        elif dataset_folder == MEDQA:
-            for data in os.listdir(f"{RAW_DATA_DIR}/{dataset_folder}"):
-                process_medqa_data(dataset_folder, data, "test.jsonl", "test.jsonl", use_full_answer=False)
+    kormedmcqa_config = {"file_type": "test", "include_answer": False}
+    medqa_config = {"input_file": "test.jsonl", "output_file": "test.jsonl", "use_full_answer": False}
+    process_datasets(kormedmcqa_config, medqa_config)
 
 def organize_cot_data():
     for dataset_folder in os.listdir(f"{RAW_DATA_DIR}/{KORMEDMCQA}"):
