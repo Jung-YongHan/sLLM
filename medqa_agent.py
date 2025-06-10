@@ -20,19 +20,37 @@ model_client = OpenAIChatCompletionClient(
 )
 
 
-class MedQAResponse(BaseModel):
+class MedQAResponse4Options(BaseModel):
+    """Response model for medical questions."""
+
     thought: str
+    response: Literal["A", "B", "C", "D"]
+
+
+class MedQAResponse5Options(MedQAResponse4Options):
+    """Response model for 5-option medical questions."""
+
     response: Literal["A", "B", "C", "D", "E"]
 
 
 class MedQAAgent(StatefulAssistantAgent):
+    """Medical question answering agent."""
 
-    def __init__(self):
+    def __init__(self, len_options: int = 5):
+        """Initialize MedQA agent.
+
+        Args:
+            len_options: Number of answer options (4 or 5)
+        """
+        output_content_type = (
+            MedQAResponse4Options if len_options == 4 else MedQAResponse5Options
+        )
+
         super().__init__(
             name="MedQAAgent",
             model_client=model_client,
             system_message="You are a medical question answering agent.",
-            output_content_type=MedQAResponse,
+            output_content_type=output_content_type,
         )
 
     async def completion(self, query: str | list[str]) -> str:

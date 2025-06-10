@@ -9,8 +9,8 @@ from rag.vector_db import VectorDB
 
 def create_preferences_memory() -> VectorDB:
     config = PersistentChromaDBVectorMemoryConfig(
-        collection_name="preferences",
-        persistence_path=os.path.join(str(Path.home()), "chroma_db"),
+        collection_name="medqa",
+        persistence_path=os.path.join(str(Path.home()), "chroma_db_medqa"),
         k=5,
         score_threshold=0.4,
     )
