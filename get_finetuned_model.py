@@ -6,8 +6,8 @@ from transformers.utils.quantization_config import BitsAndBytesConfig
 
 def fetch_model():
     # 요부분은 그냥 하드코딩 했습니다.
-    adapter_id = "JoonseoHyeon/not_finished"
-    base_model = "meta-llama/Llama-3.2-3B"
+    adapter_id = "JoonseoHyeon/medgemma-27b-text-it"
+    base_model = "google/medgemma-27b-text-it"
 
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
