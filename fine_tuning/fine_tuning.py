@@ -3,7 +3,7 @@ import json
 from accelerate import Accelerator
 from common import ModelHandler
 from configs import DatasetConfig, LoRAConfig
-from fine_tuning.data_loader import DatasetLoader
+from data_loader import DatasetLoader
 from peft import LoraConfig
 from trl import SFTConfig, SFTTrainer
 
@@ -36,9 +36,6 @@ class FineTuner:
             torch_dtype=torch_dtype,
             attn_implementation="eager",
         )
-
-        if self.lora_config:
-            self.model_handler.model.add_adapter(self.lora_config)
 
     def _prepare_dataset(self, dataset):
         def apply_chat_template(x):

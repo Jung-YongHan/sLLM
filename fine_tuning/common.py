@@ -27,7 +27,7 @@ class ModelHandler:
                 quantization_config=quant_config,
                 attn_implementation=self.attn_implementation,
                 torch_dtype=self.torch_dtype,
-                device_map="auto",
+                #device_map="auto",
                 low_cpu_mem_usage=True,
                 trust_remote_code=True,
             )
@@ -36,7 +36,7 @@ class ModelHandler:
                 self.model_source,
                 attn_implementation=self.attn_implementation,
                 torch_dtype=self.torch_dtype,
-                device_map="auto",
+                #device_map="auto",
                 low_cpu_mem_usage=True,
                 trust_remote_code=True,
             )
