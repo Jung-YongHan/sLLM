@@ -3,4 +3,6 @@ result_2025.png
 result.pptx
 fine_tuned/
 trainer_output/
+fine_tuning/gpu_test.py
+fine_tuning/generation_test.py
 data/pubmed
